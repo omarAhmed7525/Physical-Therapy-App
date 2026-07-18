@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "physical-therapy-307",
+          "appId": "1:1025887893158:android:47473c4c6078471225a667",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "physical-therapy-307",
+          "configurations": {
+            "android": "1:1025887893158:android:47473c4c6078471225a667",
+            "ios": "1:1025887893158:ios:a65a36425dda90e625a667",
+            "macos": "1:1025887893158:ios:a65a36425dda90e625a667",
+            "web": "1:1025887893158:web:a960943beb8d9e5e25a667",
+            "windows": "1:1025887893158:web:37934f6897d7cb9c25a667"
+          }
+        }
+      }
+    }
+  }
+}

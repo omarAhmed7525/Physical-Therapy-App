@@ -1,0 +1,53 @@
+name: physical_therapy
+description: "A physiotherapy clinic management app for a single doctor."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  provider: ^6.1.2
+
+  # Firebase
+  firebase_core: ^3.13.1
+  cloud_firestore: ^5.6.9
+  firebase_auth: ^5.5.2
+
+  # Local storage
+  shared_preferences: ^2.3.5
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Maps / URL
+  url_launcher: ^6.3.1
+
+  # Date formatting
+  intl: ^0.20.2
+
+  geocoding: ^3.0.0
+
+dev_dependencies:
+
+  flutter_launcher_icons: ^0.14.3
+
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/PhysicalTherapy.png"

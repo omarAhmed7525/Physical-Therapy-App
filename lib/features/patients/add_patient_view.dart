@@ -1,0 +1,180 @@
+import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:physical_therapy/providers/patient_provider.dart';
+import 'package:physical_therapy/widgets/custom_button.dart';
+import 'package:physical_therapy/widgets/custom_textfield.dart';
+import 'package:provider/provider.dart';
+
+class AddPatientView extends StatefulWidget {
+  const AddPatientView({super.key});
+
+  @override
+  State<AddPatientView> createState() => _AddPatientViewState();
+}
+
+class _AddPatientViewState extends State<AddPatientView> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _latController = TextEditingController();
+  final _lngController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _notesController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final address = _addressController.text.trim();
+    final notes = _notesController.text.trim();
+
+    double? lat;
+    double? lng;
+    if (_latController.text.isNotEmpty && _lngController.text.isNotEmpty) {
+      lat = double.tryParse(_latController.text.trim());
+      lng = double.tryParse(_lngController.text.trim());
+    } else if (address.isNotEmpty) {
+      // Auto-geocode the address if lat/lng were not entered manually.
+      try {
+        final locations = await locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          lat = locations.first.latitude;
+          lng = locations.first.longitude;
+        }
+      } catch (_) {
+        // Geocoding failed silently; user can still add coordinates manually later.
+      }
+    }
+
+    final provider = context.read<PatientProvider>();
+    await provider.addPatient(
+      name: name,
+      phone: phone,
+      address: address,
+      medicalNotes: notes,
+      latitude: lat,
+      longitude: lng,
+    );
+
+    if (mounted) {
+      if (provider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء إضافة المريض: ${provider.error}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إضافة المريض بنجاح'),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = context.watch<PatientProvider>().isLoading;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('إضافة مريض جديد'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            CustomTextField(
+              controller: _nameController,
+              label: 'اسم المريض *',
+              hint: 'أدخل اسم المريض الثنائي أو الثلاثي',
+              prefixIcon: Icons.person,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'يرجى إدخال اسم المريض';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _phoneController,
+              label: 'رقم الهاتف',
+              hint: 'أدخل رقم الهاتف المكون من 10 أرقام (اختياري)',
+              prefixIcon: Icons.phone,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _addressController,
+              label: 'العنوان بالتفصيل',
+              hint: 'المحافظة، المدينة، الشارع، علامة مميزة (اختياري)',
+              prefixIcon: Icons.location_city,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomTextField(
+                    controller: _latController,
+                    label: 'خط العرض (Latitude)',
+                    hint: 'مثال: 30.0444',
+                    prefixIcon: Icons.map,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: CustomTextField(
+                    controller: _lngController,
+                    label: 'خط الطول (Longitude)',
+                    hint: 'مثال: 31.2357',
+                    prefixIcon: Icons.map,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'اختياري: أدخل الإحداثيات لتتمكن من فتح موقع المريض على خرائط جوجل مباشرة من شاشة تفاصيل المريض.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _notesController,
+              label: 'التشخيص الطبي / ملاحظات طبية',
+              hint: 'اكتب الحالة المرضية للمريض والتشخيص المبدئي...',
+              prefixIcon: Icons.medical_services,
+              maxLines: 4,
+            ),
+            const SizedBox(height: 32),
+            CustomButton(
+              text: 'حفظ المريض',
+              isLoading: isLoading,
+              onPressed: _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
