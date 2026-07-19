@@ -47,6 +47,8 @@ class PatientProvider extends ChangeNotifier {
     required String medicalNotes,
     double? latitude,
     double? longitude,
+    bool commissionEnabled = false,
+    double? commissionAmount,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -62,6 +64,9 @@ class PatientProvider extends ChangeNotifier {
             ? GeoPoint(latitude, longitude)
             : null,
         createdAt: DateTime.now(),
+        commissionEnabled: commissionEnabled,
+        commissionAmount: commissionEnabled ? commissionAmount : null,
+        commissionSessionsCount: 0,
       );
 
       await _patientRepository.addPatient(newPatient);
@@ -83,11 +88,14 @@ class PatientProvider extends ChangeNotifier {
     double? latitude,
     double? longitude,
     bool clearLocation = false,
+    bool? commissionEnabled,
+    double? commissionAmount,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      final isCommEnabled = commissionEnabled ?? patient.commissionEnabled;
       final updatedPatient = patient.copyWith(
         name: name,
         phone: phone,
@@ -97,6 +105,10 @@ class PatientProvider extends ChangeNotifier {
             ? GeoPoint(latitude, longitude)
             : null,
         clearLocation: clearLocation,
+        commissionEnabled: isCommEnabled,
+        commissionAmount: isCommEnabled ? (commissionAmount ?? patient.commissionAmount) : null,
+        clearCommissionAmount: !isCommEnabled,
+        commissionSessionsCount: isCommEnabled ? patient.commissionSessionsCount : 0,
       );
 
       await _patientRepository.updatePatient(updatedPatient);
@@ -122,6 +134,32 @@ class PatientProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Completes the commission cycle for a patient.
+  Future<void> completeCommissionCycle(PatientModel patient) async {
+    if (patient.commissionAmount == null) return;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _patientRepository.completeCommissionCycle(
+        patient.id,
+        patient.commissionAmount!,
+        patient.name, // stored in the Firestore doc so Reports never needs a secondary lookup
+      );
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Stream of all paid commissions across all patients.
+  Stream<List<Map<String, dynamic>>> getPaidCommissionsStream() {
+    return _patientRepository.getCommissionHistoryStream();
   }
 
   @override

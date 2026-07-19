@@ -31,13 +31,32 @@ class PatientCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      patient.name,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            patient.name,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (patient.commissionEnabled && patient.commissionCycleState != 'inactive') ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: patient.commissionCycleState == 'due'
+                                  ? theme.colorScheme.error
+                                  : Colors.amber,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Icon(

@@ -20,6 +20,9 @@ class _AddPatientViewState extends State<AddPatientView> {
   final _notesController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
+  
+  bool _commissionEnabled = false;
+  final _commissionAmountController = TextEditingController();
 
   @override
   void dispose() {
@@ -29,6 +32,7 @@ class _AddPatientViewState extends State<AddPatientView> {
     _notesController.dispose();
     _latController.dispose();
     _lngController.dispose();
+    _commissionAmountController.dispose();
     super.dispose();
   }
 
@@ -66,6 +70,8 @@ class _AddPatientViewState extends State<AddPatientView> {
       medicalNotes: notes,
       latitude: lat,
       longitude: lng,
+      commissionEnabled: _commissionEnabled,
+      commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
     );
 
     if (mounted) {
@@ -90,6 +96,7 @@ class _AddPatientViewState extends State<AddPatientView> {
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<PatientProvider>().isLoading;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -165,6 +172,50 @@ class _AddPatientViewState extends State<AddPatientView> {
               hint: 'اكتب الحالة المرضية للمريض والتشخيص المبدئي...',
               prefixIcon: Icons.medical_services,
               maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('تفعيل تتبع العمولة'),
+                    subtitle: const Text('احتساب عمولة لجهة الإحالة عند اكتمال 3 جلسات'),
+                    value: _commissionEnabled,
+                    onChanged: (val) {
+                      setState(() {
+                        _commissionEnabled = val;
+                      });
+                    },
+                    secondary: Icon(
+                      Icons.monetization_on,
+                      color: _commissionEnabled ? theme.colorScheme.primary : theme.disabledColor,
+                    ),
+                  ),
+                  if (_commissionEnabled)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CustomTextField(
+                        controller: _commissionAmountController,
+                        label: 'قيمة العمولة كل 3 جلسات',
+                        hint: 'أدخل قيمة العمولة بالجنيه',
+                        prefixIcon: Icons.attach_money,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (_commissionEnabled) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال قيمة العمولة';
+                            }
+                            final amount = double.tryParse(value.trim());
+                            if (amount == null || amount <= 0) {
+                              return 'يرجى إدخال رقم صحيح أكبر من الصفر';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             CustomButton(

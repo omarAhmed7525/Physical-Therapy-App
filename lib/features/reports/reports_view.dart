@@ -198,6 +198,129 @@ class _ReportsViewState extends State<ReportsView> {
                 ),
                 const SizedBox(height: 24),
 
+                // ── Paid commissions history ──────────────────────────────────
+                Text(
+                  'سجل العمولات المدفوعة',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: patientProvider.getPaidCommissionsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Text('حدث خطأ في تحميل سجل العمولات: ${snapshot.error}');
+                    }
+                    final history = snapshot.data ?? [];
+                    if (history.isEmpty) {
+                      return Container(
+                        height: 100,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                        ),
+                        child: Text(
+                          'لا يوجد سجل عمولات مدفوعة بعد',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // Group entries by patientId for a cleaner per-patient view
+                    final grouped = <String, List<Map<String, dynamic>>>{};
+                    for (final log in history) {
+                      final pid = log['patientId'] as String;
+                      grouped.putIfAbsent(pid, () => []).add(log);
+                    }
+                    final groupKeys = grouped.keys.toList();
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: groupKeys.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final patientId = groupKeys[index];
+                        final entries = grouped[patientId]!;
+                        // Primary: name stored at write-time in Firestore (never stale).
+                        // Fallback: in-memory patients map (covers legacy docs without name).
+                        final storedName = entries.first['patientName'] as String? ?? '';
+                        final patientName = storedName.isNotEmpty
+                            ? storedName
+                            : (patientsMap[patientId] ?? 'مريض غير معروف');
+                        final totalPaid = entries.fold<double>(
+                          0.0,
+                          (sum, e) => sum + (e['amount'] as double),
+                        );
+
+                        return Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Patient header row
+                              ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.green.withOpacity(0.12),
+                                  child: const Icon(Icons.person, color: Colors.green),
+                                ),
+                                title: Text(
+                                  patientName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text('عدد الدفعات: ${entries.length}'),
+                                trailing: Text(
+                                  '${totalPaid.toStringAsFixed(0)} ج.م',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              // Individual payment sub-rows
+                              const Divider(height: 1),
+                              ...entries.map((log) {
+                                final entryAmount = log['amount'] as double;
+                                final paidAt = log['paidAt'] as DateTime;
+                                final formattedDate =
+                                    '${paidAt.year}/${paidAt.month.toString().padLeft(2, '0')}/${paidAt.day.toString().padLeft(2, '0')}';
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.green,
+                                    size: 18,
+                                  ),
+                                  title: Text(
+                                    'تاريخ الدفع: $formattedDate',
+                                    style: textTheme.bodySmall,
+                                  ),
+                                  trailing: Text(
+                                    '${entryAmount.toStringAsFixed(0)} ج.م',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+
                 // Monthly Sessions list header
                 Text(
                   'تفاصيل الجلسات لشهر ${DateHelper.getArabicMonthName(_selectedMonth)} ($_selectedYear)',
@@ -249,6 +372,7 @@ class _ReportsViewState extends State<ReportsView> {
                       );
                     },
                   ),
+                const SizedBox(height: 32),
               ],
             ),
           ),

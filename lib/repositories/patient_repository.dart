@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:physical_therapy/core/services/firebase_service.dart';
 import 'package:physical_therapy/models/patient_model.dart';
 
@@ -37,22 +38,30 @@ class PatientRepository {
     await _firebaseService.patientDoc(patient.id).update(patient.toMap());
   }
 
-  /// Delete a patient and all their associated subcollection sessions atomically using a WriteBatch.
+  /// Delete a patient and ALL associated subcollections atomically via a WriteBatch.
+  /// Deletes: sessions, commissionHistory, and the patient document itself — in
+  /// one atomic commit so there are never orphaned subcollection documents.
   Future<void> deletePatient(String patientId) async {
     final batch = _firebaseService.batch;
+    final patientRef = _firebaseService.patientDoc(patientId);
 
-    // 1. Query all documents in sessions subcollection
+    // 1. Query and batch-delete all sessions
     final sessionsSnapshot = await _firebaseService.sessionsCollection(patientId).get();
-
-    // 2. Add all session deletions to the batch
     for (final doc in sessionsSnapshot.docs) {
       batch.delete(doc.reference);
     }
 
-    // 3. Add the patient document deletion to the batch
-    batch.delete(_firebaseService.patientDoc(patientId));
+    // 2. Query and batch-delete all commissionHistory entries
+    final commissionSnapshot =
+        await patientRef.collection('commissionHistory').get();
+    for (final doc in commissionSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
 
-    // 4. Commit the batch atomically
+    // 3. Delete the patient document itself (always last)
+    batch.delete(patientRef);
+
+    // 4. Commit everything atomically
     await batch.commit();
   }
 
@@ -63,5 +72,62 @@ class PatientRepository {
       return PatientModel.fromMap(doc.data()!, doc.id);
     }
     return null;
+  }
+
+  /// Completes a patient's commission cycle.
+  /// Resets commissionSessionsCount to 0 and logs the payment in the
+  /// commissionHistory subcollection — including [patientName] so that the
+  /// Reports screen can display the name without a secondary in-memory lookup
+  /// (which can fail when the stream resolves before patients have loaded).
+  Future<void> completeCommissionCycle(
+    String patientId,
+    double amountPaid,
+    String patientName,
+  ) async {
+    final batch = _firebaseService.batch;
+    final patientRef = _firebaseService.patientDoc(patientId);
+
+    // Create new history log document reference
+    final historyDocRef = patientRef.collection('commissionHistory').doc();
+
+    batch.update(patientRef, {'commissionSessionsCount': 0});
+    batch.set(historyDocRef, {
+      'amount': amountPaid,
+      'paidAt': FieldValue.serverTimestamp(),
+      // Store the name at write-time so the Reports screen never needs a
+      // secondary lookup that could race against PatientProvider loading.
+      'patientName': patientName,
+    });
+
+    await batch.commit();
+  }
+
+  /// Stream of all paid commissions across all patients (using Collection Group).
+  ///
+  /// Each map contains:
+  ///   - `patientId`   : Firestore patient document ID (from path segment [1])
+  ///   - `patientName` : Name stored at write-time (avoids in-memory lookup race)
+  ///   - `amount`      : Commission amount paid
+  ///   - `paidAt`      : Payment timestamp
+  Stream<List<Map<String, dynamic>>> getCommissionHistoryStream() {
+    return _firebaseService.commissionHistoryQuery().snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        // Path structure: patients/{patientId}/commissionHistory/{docId}
+        // Segments after split('/'): [0]=patients  [1]=patientId  [2]=commissionHistory  [3]=docId
+        final pathSegments = doc.reference.path.split('/');
+        final patientId = pathSegments.length >= 4 ? pathSegments[1] : '';
+        final data = doc.data();
+
+        return {
+          'id': doc.id,
+          'patientId': patientId,
+          // Use the name stored at write-time; fall back to empty string so
+          // the UI can still try the in-memory patients map as a secondary source.
+          'patientName': data['patientName'] as String? ?? '',
+          'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
+          'paidAt': (data['paidAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        };
+      }).toList();
+    });
   }
 }

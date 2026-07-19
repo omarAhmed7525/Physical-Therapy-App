@@ -2,9 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/repositories/session_repository.dart';
+import 'package:physical_therapy/repositories/patient_repository.dart';
+
+enum SessionMutationType { add, update, delete }
 
 class SessionProvider extends ChangeNotifier {
   final SessionRepository _sessionRepository = SessionRepository();
+  final PatientRepository _patientRepository;
 
   List<SessionModel> _sessions = [];
   List<SessionModel> _todaySessions = [];
@@ -32,7 +36,8 @@ class SessionProvider extends ChangeNotifier {
     }).fold(0.0, (sum, session) => sum + session.paidAmount);
   }
 
-  SessionProvider() {
+  SessionProvider({PatientRepository? patientRepository})
+      : _patientRepository = patientRepository ?? PatientRepository() {
     _listenToTodaySessions();
     _listenToAllSessions();
   }
@@ -100,6 +105,14 @@ class SessionProvider extends ChangeNotifier {
       );
 
       await _sessionRepository.addSession(newSession);
+
+      // Update patient commission count if enabled
+      await _updatePatientCommissionOnMutation(
+        patientId: patientId,
+        mutationType: SessionMutationType.add,
+        newStatus: status,
+      );
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -126,6 +139,7 @@ class SessionProvider extends ChangeNotifier {
 
     try {
       final remainingAmount = (price - paidAmount).clamp(0.0, double.infinity);
+      final oldStatus = session.status;
 
       final updatedSession = session.copyWith(
         date: date,
@@ -138,6 +152,15 @@ class SessionProvider extends ChangeNotifier {
       );
 
       await _sessionRepository.updateSession(updatedSession);
+
+      // Update patient commission count if enabled
+      await _updatePatientCommissionOnMutation(
+        patientId: session.patientId,
+        mutationType: SessionMutationType.update,
+        oldStatus: oldStatus,
+        newStatus: status,
+      );
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -154,13 +177,90 @@ class SessionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final sessionToDelete = _sessions.cast<SessionModel?>().firstWhere(
+            (s) => s?.id == sessionId,
+            orElse: () => null,
+          );
+      final deletedStatus = sessionToDelete?.status;
+
       await _sessionRepository.deleteSession(patientId, sessionId);
+
+      if (deletedStatus != null) {
+        await _updatePatientCommissionOnMutation(
+          patientId: patientId,
+          mutationType: SessionMutationType.delete,
+          deletedStatus: deletedStatus,
+        );
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Helper logic to track and adjust commission sessions count.
+  /// Isolated and well-commented to ensure correctness across session mutations.
+  Future<void> _updatePatientCommissionOnMutation({
+    required String patientId,
+    required SessionMutationType mutationType,
+    SessionStatus? oldStatus,
+    SessionStatus? newStatus,
+    SessionStatus? deletedStatus,
+  }) async {
+    try {
+      final patient = await _patientRepository.getPatientById(patientId);
+      if (patient == null || !patient.commissionEnabled) return;
+
+      final currentCount = patient.commissionSessionsCount;
+      int newCount = currentCount;
+
+      switch (mutationType) {
+        case SessionMutationType.add:
+          // Increment if the added session is completed, and we haven't reached the limit of 3.
+          if (newStatus == SessionStatus.completed && currentCount < 3) {
+            newCount = currentCount + 1;
+          }
+          break;
+
+        case SessionMutationType.update:
+          // Status changed FROM completed TO something else (postponed/cancelled).
+          if (oldStatus == SessionStatus.completed && newStatus != SessionStatus.completed) {
+            // Only adjust if not already due (i.e. count is 1 or 2).
+            if (currentCount == 1 || currentCount == 2) {
+              newCount = currentCount - 1;
+            }
+          }
+          // Status changed FROM something else TO completed.
+          else if (oldStatus != SessionStatus.completed && newStatus == SessionStatus.completed) {
+            // Increment up to the cap of 3.
+            if (currentCount < 3) {
+              newCount = currentCount + 1;
+            }
+          }
+          break;
+
+        case SessionMutationType.delete:
+          // Decrement if the deleted session was completed.
+          if (deletedStatus == SessionStatus.completed) {
+            // Only adjust if not already due (i.e. count is 1 or 2).
+            if (currentCount == 1 || currentCount == 2) {
+              newCount = currentCount - 1;
+            }
+          }
+          break;
+      }
+
+      // If the count changed, update the patient document.
+      if (newCount != currentCount) {
+        final updatedPatient = patient.copyWith(commissionSessionsCount: newCount);
+        await _patientRepository.updatePatient(updatedPatient);
+      }
+    } catch (e) {
+      debugPrint('Error updating patient commission count: $e');
     }
   }
 

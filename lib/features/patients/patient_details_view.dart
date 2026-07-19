@@ -247,6 +247,143 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
             ),
           ),
 
+          if (_currentPatient.commissionEnabled) ...[
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: _currentPatient.commissionCycleState == 'due'
+                          ? theme.colorScheme.error.withOpacity(0.12)
+                          : Colors.amber.withOpacity(0.12),
+                      child: Icon(
+                        Icons.monetization_on,
+                        color: _currentPatient.commissionCycleState == 'due'
+                            ? theme.colorScheme.error
+                            : Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'تتبع العمولة',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (_currentPatient.commissionCycleState == 'inProgress')
+                            Text(
+                              'الدورة الحالية: ${_currentPatient.commissionSessionsCount}/3 جلسات مكتملة',
+                              style: textTheme.bodyMedium,
+                            )
+                          else if (_currentPatient.commissionCycleState == 'due')
+                            Text(
+                              'مستحق دفع عمولة بقيمة ${_currentPatient.commissionAmount?.toStringAsFixed(0)} ج.م',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          else
+                            Text(
+                              'الدورة الحالية: 0/3 جلسات مكتملة',
+                              style: textTheme.bodyMedium,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_currentPatient.commissionCycleState == 'due')
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('تأكيد دفع العمولة'),
+                              content: Text('هل تم دفع عمولة بقيمة ${_currentPatient.commissionAmount?.toStringAsFixed(0)} جنيه للجهة المحيلة؟'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('إلغاء'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.error,
+                                  ),
+                                  child: const Text('تأكيد الدفع'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true && mounted) {
+                            final patientProvider = context.read<PatientProvider>();
+                            await patientProvider.completeCommissionCycle(_currentPatient);
+                            if (mounted) {
+                              if (patientProvider.error != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('حدث خطأ: ${patientProvider.error}'),
+                                    backgroundColor: theme.colorScheme.error,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('تم تسجيل دفع العمولة وتصفير الدورة بنجاح'),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        child: const Text('تم الدفع'),
+                      )
+                    else if (_currentPatient.commissionCycleState == 'inProgress')
+                      Chip(
+                        backgroundColor: Colors.amber.withOpacity(0.12),
+                        side: const BorderSide(color: Colors.amber),
+                        label: Text(
+                          '${_currentPatient.commissionSessionsCount}/3 جلسات',
+                          style: const TextStyle(
+                            color: Colors.amber,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      Chip(
+                        backgroundColor: theme.dividerColor.withOpacity(0.12),
+                        side: BorderSide(color: theme.dividerColor),
+                        label: const Text(
+                          '0/3 جلسات',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
           // ── Sessions Header ────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),

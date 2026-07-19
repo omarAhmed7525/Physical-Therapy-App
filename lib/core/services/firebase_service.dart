@@ -146,4 +146,8 @@ class FirebaseService {
   /// Returns a query for ALL sessions across ALL patients.
   Query<Map<String, dynamic>> allSessionsQuery() =>
       _db.collectionGroup('sessions').orderBy('date', descending: true);
+
+  /// Returns a query for ALL commission history logs across ALL patients.
+  Query<Map<String, dynamic>> commissionHistoryQuery() =>
+      _db.collectionGroup('commissionHistory').orderBy('paidAt', descending: true);
 }

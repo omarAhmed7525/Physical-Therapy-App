@@ -18,6 +18,11 @@ class PatientModel {
   final String medicalNotes;
   final DateTime createdAt;
 
+  // ── Commission Tracking Fields ─────────────────────────────────────────────
+  final bool commissionEnabled;
+  final double? commissionAmount;
+  final int commissionSessionsCount;
+
   const PatientModel({
     required this.id,
     required this.name,
@@ -26,7 +31,21 @@ class PatientModel {
     this.location,
     required this.medicalNotes,
     required this.createdAt,
+    this.commissionEnabled = false,
+    this.commissionAmount,
+    this.commissionSessionsCount = 0,
   });
+
+  // ── Convenience Getters ────────────────────────────────────────────────────
+
+  /// 'inactive' = commission not enabled, or 0 sessions counted yet.
+  /// 'inProgress' = 1 or 2 sessions counted toward the current cycle.
+  /// 'due' = 3 sessions counted — a full cycle is complete and payment is owed.
+  String get commissionCycleState {
+    if (!commissionEnabled || commissionSessionsCount == 0) return 'inactive';
+    if (commissionSessionsCount >= 3) return 'due';
+    return 'inProgress';
+  }
 
   // ── Deserialization ─────────────────────────────────────────────────────────
 
@@ -39,6 +58,9 @@ class PatientModel {
       location: map['location'] as GeoPoint?,
       medicalNotes: map['medicalNotes'] as String? ?? '',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      commissionEnabled: map['commissionEnabled'] as bool? ?? false,
+      commissionAmount: (map['commissionAmount'] as num?)?.toDouble(),
+      commissionSessionsCount: map['commissionSessionsCount'] as int? ?? 0,
     );
   }
 
@@ -52,6 +74,9 @@ class PatientModel {
       'location': location, // null is a valid Firestore value (field not set)
       'medicalNotes': medicalNotes,
       'createdAt': Timestamp.fromDate(createdAt),
+      'commissionEnabled': commissionEnabled,
+      'commissionAmount': commissionAmount,
+      'commissionSessionsCount': commissionSessionsCount,
     };
   }
 
@@ -67,6 +92,10 @@ class PatientModel {
     bool clearLocation = false,
     String? medicalNotes,
     DateTime? createdAt,
+    bool? commissionEnabled,
+    double? commissionAmount,
+    int? commissionSessionsCount,
+    bool clearCommissionAmount = false,
   }) {
     return PatientModel(
       id: id ?? this.id,
@@ -76,6 +105,9 @@ class PatientModel {
       location: clearLocation ? null : (location ?? this.location),
       medicalNotes: medicalNotes ?? this.medicalNotes,
       createdAt: createdAt ?? this.createdAt,
+      commissionEnabled: commissionEnabled ?? this.commissionEnabled,
+      commissionAmount: clearCommissionAmount ? null : (commissionAmount ?? this.commissionAmount),
+      commissionSessionsCount: commissionSessionsCount ?? this.commissionSessionsCount,
     );
   }
 
@@ -92,5 +124,6 @@ class PatientModel {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'PatientModel(id: $id, name: $name, phone: $phone)';
+  String toString() =>
+      'PatientModel(id: $id, name: $name, phone: $phone, commissionEnabled: $commissionEnabled, commissionSessionsCount: $commissionSessionsCount)';
 }

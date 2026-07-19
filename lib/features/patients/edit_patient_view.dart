@@ -24,6 +24,9 @@ class _EditPatientViewState extends State<EditPatientView> {
   late final TextEditingController _latController;
   late final TextEditingController _lngController;
 
+  late bool _commissionEnabled;
+  late final TextEditingController _commissionAmountController;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +44,12 @@ class _EditPatientViewState extends State<EditPatientView> {
           ? widget.patient.location!.longitude.toString()
           : '',
     );
+    _commissionEnabled = widget.patient.commissionEnabled;
+    _commissionAmountController = TextEditingController(
+      text: widget.patient.commissionAmount != null
+          ? widget.patient.commissionAmount!.toString()
+          : '',
+    );
   }
 
   @override
@@ -51,6 +60,7 @@ class _EditPatientViewState extends State<EditPatientView> {
     _notesController.dispose();
     _latController.dispose();
     _lngController.dispose();
+    _commissionAmountController.dispose();
     super.dispose();
   }
 
@@ -102,6 +112,8 @@ class _EditPatientViewState extends State<EditPatientView> {
       latitude: lat,
       longitude: lng,
       clearLocation: clearLocation,
+      commissionEnabled: _commissionEnabled,
+      commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
     );
 
     if (mounted) {
@@ -126,6 +138,7 @@ class _EditPatientViewState extends State<EditPatientView> {
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<PatientProvider>().isLoading;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -201,6 +214,50 @@ class _EditPatientViewState extends State<EditPatientView> {
               hint: 'اكتب الحالة المرضية للمريض والتشخيص المبدئي...',
               prefixIcon: Icons.medical_services,
               maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('تفعيل تتبع العمولة'),
+                    subtitle: const Text('احتساب عمولة لجهة الإحالة عند اكتمال 3 جلسات'),
+                    value: _commissionEnabled,
+                    onChanged: (val) {
+                      setState(() {
+                        _commissionEnabled = val;
+                      });
+                    },
+                    secondary: Icon(
+                      Icons.monetization_on,
+                      color: _commissionEnabled ? theme.colorScheme.primary : theme.disabledColor,
+                    ),
+                  ),
+                  if (_commissionEnabled)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CustomTextField(
+                        controller: _commissionAmountController,
+                        label: 'قيمة العمولة كل 3 جلسات',
+                        hint: 'أدخل قيمة العمولة بالجنيه',
+                        prefixIcon: Icons.attach_money,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (_commissionEnabled) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال قيمة العمولة';
+                            }
+                            final amount = double.tryParse(value.trim());
+                            if (amount == null || amount <= 0) {
+                              return 'يرجى إدخال رقم صحيح أكبر من الصفر';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             CustomButton(
