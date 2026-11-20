@@ -132,11 +132,26 @@ class SettingsView extends StatelessWidget {
                   color: theme.colorScheme.error,
                 ),
               ),
-              subtitle: Text(
-                'الخروج من حساب الطبيب',
-                style: textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الخروج من حساب الطبيب',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  if (FirebaseAuth.instance.currentUser?.email != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      FirebaseAuth.instance.currentUser!.email!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               onTap: () async {
                 await FirebaseAuth.instance.signOut();

@@ -47,6 +47,7 @@ class _ReportsViewState extends State<ReportsView> {
 
     // Calculations
     final totalSessions = monthlySessions.length;
+    final scheduledCount = monthlySessions.where((s) => s.status == SessionStatus.scheduled).length;
     final completedCount = monthlySessions.where((s) => s.status == SessionStatus.completed).length;
     final postponedCount = monthlySessions.where((s) => s.status == SessionStatus.postponed).length;
     final cancelledCount = monthlySessions.where((s) => s.status == SessionStatus.cancelled).length;
@@ -187,6 +188,7 @@ class _ReportsViewState extends State<ReportsView> {
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             _buildStatColumn(context, 'الإجمالي', totalSessions.toString(), theme.colorScheme.primary),
+                            _buildStatColumn(context, 'محجوزة', scheduledCount.toString(), theme.colorScheme.primary),
                             _buildStatColumn(context, 'مكتملة', completedCount.toString(), Colors.green),
                             _buildStatColumn(context, 'مؤجلة', postponedCount.toString(), Colors.orange),
                             _buildStatColumn(context, 'ملغاة', cancelledCount.toString(), Colors.red),

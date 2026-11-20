@@ -58,9 +58,9 @@ class DashboardView extends StatelessWidget {
           children: [
             // ── Welcome Banner ───────────────────────────────────────────────
             Text(
-              'مرحباً بك دكتور معتز، 👋',
+              'مرحباً بك 👋',
               style: textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 4),

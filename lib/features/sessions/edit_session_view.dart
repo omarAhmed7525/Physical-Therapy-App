@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:physical_therapy/models/patient_model.dart';
+import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
@@ -19,22 +18,51 @@ class EditSessionView extends StatefulWidget {
 
 class _EditSessionViewState extends State<EditSessionView> {
   final _formKey = GlobalKey<FormState>();
+
   late DateTime _selectedDate;
-  late final TextEditingController _timeController;
-  late final TextEditingController _priceController;
-  late final TextEditingController _paidController;
-  late final TextEditingController _notesController;
+  late TimeOfDay _selectedTime;
+  late TextEditingController _timeController;
+  late TextEditingController _priceController;
+  late TextEditingController _paidController;
+  late TextEditingController _notesController;
+  late int _selectedDurationMinutes;
   late SessionStatus _selectedStatus;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.session.date;
-    _timeController = TextEditingController(text: widget.session.time);
-    _priceController = TextEditingController(text: widget.session.price.toStringAsFixed(0));
-    _paidController = TextEditingController(text: widget.session.paidAmount.toStringAsFixed(0));
+    _selectedDate = DateTime(
+      widget.session.date.year,
+      widget.session.date.month,
+      widget.session.date.day,
+    );
+    _selectedTime = TimeOfDay(
+      hour: widget.session.date.hour,
+      minute: widget.session.date.minute,
+    );
+    _selectedDurationMinutes = widget.session.durationMinutes;
+    _timeController = TextEditingController(
+      text: DateHelper.formatTime(widget.session.date),
+    );
+    _priceController = TextEditingController(
+      text: widget.session.price.toStringAsFixed(0),
+    );
+    _paidController = TextEditingController(
+      text: widget.session.paidAmount.toStringAsFixed(0),
+    );
     _notesController = TextEditingController(text: widget.session.notes);
     _selectedStatus = widget.session.status;
+  }
+
+  void _updateTimeControllerText() {
+    final dt = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    _timeController.text = DateHelper.formatTime(dt);
   }
 
   @override
@@ -63,14 +91,13 @@ class _EditSessionViewState extends State<EditSessionView> {
   Future<void> _selectTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(widget.session.date),
+      initialTime: _selectedTime,
     );
     if (picked != null) {
-      if (mounted) {
-        setState(() {
-          _timeController.text = picked.format(context);
-        });
-      }
+      setState(() {
+        _selectedTime = picked;
+        _updateTimeControllerText();
+      });
     }
   }
 
@@ -80,11 +107,19 @@ class _EditSessionViewState extends State<EditSessionView> {
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final paid = double.tryParse(_paidController.text.trim()) ?? 0.0;
 
+    final fullScheduledDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
     final sessionProvider = context.read<SessionProvider>();
     await sessionProvider.updateSession(
       widget.session,
-      date: _selectedDate,
-      time: _timeController.text.trim(),
+      date: fullScheduledDateTime,
+      durationMinutes: _selectedDurationMinutes,
       price: price,
       paidAmount: paid,
       status: _selectedStatus,
@@ -95,7 +130,7 @@ class _EditSessionViewState extends State<EditSessionView> {
       if (sessionProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء تعديل الجلسة: ${sessionProvider.error}'),
+            content: Text(sessionProvider.error!),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -112,7 +147,7 @@ class _EditSessionViewState extends State<EditSessionView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('حذف الجلسة'),
+        title: const Text('تأكيد الحذف'),
         content: const Text('هل أنت متأكد من حذف هذه الجلسة نهائياً؟'),
         actions: [
           TextButton(
@@ -130,24 +165,27 @@ class _EditSessionViewState extends State<EditSessionView> {
       ),
     );
 
-    if (confirm == true && mounted) {
-      final sessionProvider = context.read<SessionProvider>();
-      await sessionProvider.deleteSession(widget.session.patientId, widget.session.id);
+    if (confirm != true || !mounted) return;
 
-      if (mounted) {
-        if (sessionProvider.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('حدث خطأ أثناء الحذف: ${sessionProvider.error}'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم حذف الجلسة بنجاح')),
-          );
-          Navigator.pop(context);
-        }
+    final sessionProvider = context.read<SessionProvider>();
+    await sessionProvider.deleteSession(
+      widget.session.patientId,
+      widget.session.id,
+    );
+
+    if (mounted) {
+      if (sessionProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء الحذف: ${sessionProvider.error}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حذف الجلسة بنجاح')),
+        );
+        Navigator.pop(context);
       }
     }
   }
@@ -156,188 +194,223 @@ class _EditSessionViewState extends State<EditSessionView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-
     final patients = context.watch<PatientProvider>().patients;
-    final isLoading = context.watch<SessionProvider>().isLoading;
 
-    final patient = patients.firstWhere(
-      (p) => p.id == widget.session.patientId,
-      orElse: () => PatientModel(
-        id: '',
-        name: 'مريض غير معروف',
-        phone: '',
-        address: '',
-        medicalNotes: '',
-        createdAt: DateTime.now(),
-      ),
-    );
+    final patient = patients.cast<dynamic>().firstWhere(
+          (p) => p.id == widget.session.patientId,
+          orElse: () => null,
+        );
+    final patientName = patient?.name ?? 'مريض غير معروف';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تعديل بيانات الجلسة'),
+        title: const Text('تعديل تفاصيل الجلسة'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: const Icon(Icons.delete_outline),
+            color: theme.colorScheme.error,
             tooltip: 'حذف الجلسة',
             onPressed: _deleteSession,
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // ── Patient Info Banner ──────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.person, color: theme.colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'اسم المريض:',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        patient.name,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Patient Info Banner ────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
                   ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.person, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'المريض:',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          patientName,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Date & Time ──────────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: _selectDate,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'تاريخ الجلسة *',
-                        prefixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(
-                        DateFormat('yyyy/MM/dd').format(_selectedDate),
-                        style: textTheme.bodyLarge,
+              // ── Date and Time Selection ────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: _selectDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'التاريخ *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          DateHelper.formatDate(_selectedDate),
+                          style: textTheme.bodyMedium,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _timeController,
-                    label: 'وقت الجلسة *',
-                    prefixIcon: Icons.access_time,
-                    readOnly: true,
-                    onTap: _selectTime,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _selectTime,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'الوقت *',
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        child: Text(
+                          _timeController.text,
+                          style: textTheme.bodyMedium,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Price & Paid Amount ──────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _priceController,
-                    label: 'سعر الجلسة *',
-                    hint: 'مثال: 150',
-                    prefixIcon: Icons.attach_money,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال السعر';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'سعر غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _paidController,
-                    label: 'المبلغ المدفوع *',
-                    hint: 'مثال: 100',
-                    prefixIcon: Icons.payment,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال المدفوع';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'مبلغ غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Status Selection ─────────────────────────────────────────────
-            DropdownButtonFormField<SessionStatus>(
-              value: _selectedStatus,
-              decoration: const InputDecoration(
-                labelText: 'حالة الجلسة *',
-                prefixIcon: Icon(Icons.info_outline),
+                ],
               ),
-              items: SessionStatus.values.map((status) {
-                return DropdownMenuItem<SessionStatus>(
-                  value: status,
-                  child: Text(status.arabicLabel),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedStatus = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Notes ────────────────────────────────────────────────────────
-            CustomTextField(
-              controller: _notesController,
-              label: 'ملاحظات وتفاصيل الجلسة',
-              hint: 'اكتب التمارين التي تم إجراؤها أو الملاحظات الطبية...',
-              prefixIcon: Icons.description,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 32),
+              // ── Duration Dropdown ──────────────────────────────────────────
+              DropdownButtonFormField<int>(
+                initialValue: _selectedDurationMinutes,
+                decoration: const InputDecoration(
+                  labelText: 'مدة الجلسة',
+                  prefixIcon: Icon(Icons.timer_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 30, child: Text('30 دقيقة')),
+                  DropdownMenuItem(value: 45, child: Text('45 دقيقة')),
+                  DropdownMenuItem(value: 60, child: Text('60 دقيقة')),
+                  DropdownMenuItem(value: 90, child: Text('90 دقيقة')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedDurationMinutes = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
 
-            // ── Submit Button ────────────────────────────────────────────────
-            CustomButton(
-              text: 'حفظ التعديلات',
-              isLoading: isLoading,
-              onPressed: _submit,
-            ),
-          ],
+              // ── Financial Info ─────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _priceController,
+                      label: 'سعر الجلسة *',
+                      hint: 'مثال: 200',
+                      prefixIcon: Icons.attach_money,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'يرجى إدخال السعر';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'سعر غير صالح';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _paidController,
+                      label: 'المبلغ المدفوع *',
+                      hint: 'مثال: 100',
+                      prefixIcon: Icons.payment,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'يرجى إدخال المدفوع';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'مبلغ غير صالح';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Status Selection ───────────────────────────────────────────
+              DropdownButtonFormField<SessionStatus>(
+                value: _selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'حالة الجلسة *',
+                  prefixIcon: Icon(Icons.info_outline),
+                ),
+                items: SessionStatus.values.map((status) {
+                  return DropdownMenuItem<SessionStatus>(
+                    value: status,
+                    child: Text(status.arabicLabel),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // ── Notes ──────────────────────────────────────────────────────
+              CustomTextField(
+                controller: _notesController,
+                label: 'ملاحظات وتفاصيل الجلسة',
+                hint: 'اكتب التمارين التي تم إجراؤها أو الملاحظات الطبية...',
+                prefixIcon: Icons.description,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 24),
+
+              // ── Submit Button ──────────────────────────────────────────────
+              Consumer<SessionProvider>(
+                builder: (context, provider, _) {
+                  return CustomButton(
+                    text: 'تعديل وحفظ الجلسة',
+                    icon: Icons.save,
+                    isLoading: provider.isLoading,
+                    onPressed: _submit,
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
