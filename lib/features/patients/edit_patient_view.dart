@@ -27,6 +27,10 @@ class _EditPatientViewState extends State<EditPatientView> {
   late bool _commissionEnabled;
   late final TextEditingController _commissionAmountController;
 
+  late bool _planEnabled;
+  late final TextEditingController _planTotalSessionsController;
+  bool _resetPlanStartDate = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +54,12 @@ class _EditPatientViewState extends State<EditPatientView> {
           ? widget.patient.commissionAmount!.toString()
           : '',
     );
+    _planEnabled = widget.patient.planTotalSessions != null;
+    _planTotalSessionsController = TextEditingController(
+      text: widget.patient.planTotalSessions != null
+          ? widget.patient.planTotalSessions!.toString()
+          : '',
+    );
   }
 
   @override
@@ -61,6 +71,7 @@ class _EditPatientViewState extends State<EditPatientView> {
     _latController.dispose();
     _lngController.dispose();
     _commissionAmountController.dispose();
+    _planTotalSessionsController.dispose();
     super.dispose();
   }
 
@@ -114,6 +125,9 @@ class _EditPatientViewState extends State<EditPatientView> {
       clearLocation: clearLocation,
       commissionEnabled: _commissionEnabled,
       commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
+      planTotalSessions: _planEnabled ? int.tryParse(_planTotalSessionsController.text.trim()) : null,
+      resetPlanStartDate: _resetPlanStartDate,
+      clearPlan: !_planEnabled,
     );
 
     if (mounted) {
@@ -204,7 +218,7 @@ class _EditPatientViewState extends State<EditPatientView> {
             Text(
               'امسح القيمتين أعلاه إذا كنت تريد إلغاء الموقع الجغرافي للمريض.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: 16),
@@ -214,6 +228,61 @@ class _EditPatientViewState extends State<EditPatientView> {
               hint: 'اكتب الحالة المرضية للمريض والتشخيص المبدئي...',
               prefixIcon: Icons.medical_services,
               maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('باقة علاج'),
+                    subtitle: const Text('تحديد عدد جلسات محدد كباقة للمريض'),
+                    value: _planEnabled,
+                    onChanged: (val) {
+                      setState(() {
+                        _planEnabled = val;
+                      });
+                    },
+                    secondary: Icon(
+                      Icons.inventory_2_outlined,
+                      color: _planEnabled ? theme.colorScheme.primary : theme.disabledColor,
+                    ),
+                  ),
+                  if (_planEnabled) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: CustomTextField(
+                        controller: _planTotalSessionsController,
+                        label: 'عدد جلسات الباقة *',
+                        hint: 'مثال: 12',
+                        prefixIcon: Icons.format_list_numbered,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (_planEnabled) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال عدد الجلسات';
+                            }
+                            final count = int.tryParse(value.trim());
+                            if (count == null || count < 1) {
+                              return 'يرجى إدخال عدد صحيح أكبر من أو يساوي 1';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    CheckboxListTile(
+                      title: const Text('بدء باقة جديدة من اليوم'),
+                      subtitle: const Text('إعادة ضبط تاريخ بدء الباقة وحساب الجلسات من جديد'),
+                      value: _resetPlanStartDate,
+                      onChanged: (val) {
+                        setState(() {
+                          _resetPlanStartDate = val ?? false;
+                        });
+                      },
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Card(

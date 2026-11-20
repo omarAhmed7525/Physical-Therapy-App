@@ -44,7 +44,7 @@ class SettingsView extends StatelessWidget {
                 themeProvider.isDarkMode
                     ? 'تفعيل المظهر الليلي المريح للعينين'
                     : 'تفعيل المظهر النهاري المضيء',
-                style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
               value: themeProvider.isDarkMode,
               onChanged: (bool value) {
@@ -79,7 +79,7 @@ class SettingsView extends StatelessWidget {
                       ),
                       Text(
                         '1.0.0',
-                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                       ),
                     ],
                   ),
@@ -93,7 +93,7 @@ class SettingsView extends StatelessWidget {
                       ),
                       Text(
                         'طبيب منفرد (عيادة خاصة)',
-                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                        style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                       ),
                     ],
                   ),
@@ -118,7 +118,7 @@ class SettingsView extends StatelessWidget {
             child: ListTile(
               leading: CircleAvatar(
                 radius: 18,
-                backgroundColor: theme.colorScheme.error.withOpacity(0.12),
+                backgroundColor: theme.colorScheme.error.withValues(alpha: 0.12),
                 child: Icon(
                   Icons.logout,
                   color: theme.colorScheme.error,

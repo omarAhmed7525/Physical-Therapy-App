@@ -8,6 +8,7 @@ import 'package:physical_therapy/core/theme/light_theme.dart';
 import 'package:physical_therapy/core/theme/dark_theme.dart';
 import 'package:physical_therapy/features/auth/login_screen.dart';
 import 'package:physical_therapy/features/migration/migration_screen.dart';
+import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:provider/provider.dart';
@@ -95,6 +96,7 @@ class AuthGate extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => PatientProvider()),
         ChangeNotifierProvider(create: (_) => SessionProvider()),
+        ChangeNotifierProvider(create: (_) => DebtProvider()),
       ],
       child: Navigator(
         onGenerateRoute: AppRoutes.generateRoute,

@@ -49,6 +49,7 @@ class PatientProvider extends ChangeNotifier {
     double? longitude,
     bool commissionEnabled = false,
     double? commissionAmount,
+    int? planTotalSessions,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -67,6 +68,8 @@ class PatientProvider extends ChangeNotifier {
         commissionEnabled: commissionEnabled,
         commissionAmount: commissionEnabled ? commissionAmount : null,
         commissionSessionsCount: 0,
+        planTotalSessions: planTotalSessions,
+        planStartDate: planTotalSessions != null ? DateTime.now() : null,
       );
 
       await _patientRepository.addPatient(newPatient);
@@ -90,12 +93,25 @@ class PatientProvider extends ChangeNotifier {
     bool clearLocation = false,
     bool? commissionEnabled,
     double? commissionAmount,
+    int? planTotalSessions,
+    bool resetPlanStartDate = false,
+    bool clearPlan = false,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       final isCommEnabled = commissionEnabled ?? patient.commissionEnabled;
+
+      DateTime? newPlanStartDate = patient.planStartDate;
+      if (clearPlan) {
+        newPlanStartDate = null;
+      } else if (resetPlanStartDate) {
+        newPlanStartDate = DateTime.now();
+      } else if (patient.planStartDate == null && planTotalSessions != null) {
+        newPlanStartDate = DateTime.now();
+      }
+
       final updatedPatient = patient.copyWith(
         name: name,
         phone: phone,
@@ -109,6 +125,9 @@ class PatientProvider extends ChangeNotifier {
         commissionAmount: isCommEnabled ? (commissionAmount ?? patient.commissionAmount) : null,
         clearCommissionAmount: !isCommEnabled,
         commissionSessionsCount: isCommEnabled ? patient.commissionSessionsCount : 0,
+        planTotalSessions: clearPlan ? null : (planTotalSessions ?? patient.planTotalSessions),
+        planStartDate: newPlanStartDate,
+        clearPlan: clearPlan,
       );
 
       await _patientRepository.updatePatient(updatedPatient);
@@ -146,7 +165,7 @@ class PatientProvider extends ChangeNotifier {
       await _patientRepository.completeCommissionCycle(
         patient.id,
         patient.commissionAmount!,
-        patient.name, // stored in the Firestore doc so Reports never needs a secondary lookup
+        patient.name,
       );
       _error = null;
     } catch (e) {

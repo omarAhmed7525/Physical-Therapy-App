@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/app/routes.dart';
+import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/features/dashboard/widgets/income_card.dart';
 import 'package:physical_therapy/features/dashboard/widgets/today_session_card.dart';
+import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:physical_therapy/widgets/loading_widget.dart';
@@ -31,10 +33,18 @@ class DashboardView extends StatelessWidget {
 
     final patientProvider = context.watch<PatientProvider>();
     final sessionProvider = context.watch<SessionProvider>();
+    final debtProvider = context.watch<DebtProvider>();
 
     final patientsMap = {for (var p in patientProvider.patients) p.id: p};
     final todaySessions = sessionProvider.todaySessions;
-    final income = sessionProvider.monthlyIncome;
+
+    final now = DateTime.now();
+    final income = incomeForMonth(
+      sessions: sessionProvider.sessions,
+      debtPayments: debtProvider.debtPayments,
+      year: now.year,
+      month: now.month,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -113,6 +123,20 @@ class DashboardView extends StatelessWidget {
                   Colors.purple,
                   AppRoutes.reports,
                 ),
+                _buildGridItem(
+                  context,
+                  'الجدول',
+                  Icons.calendar_month,
+                  Colors.teal,
+                  AppRoutes.schedule,
+                ),
+                _buildGridItem(
+                  context,
+                  'المديونيات',
+                  Icons.account_balance_wallet,
+                  Colors.red,
+                  AppRoutes.debts,
+                ),
               ],
             ),
             const SizedBox(height: 28),
@@ -152,21 +176,21 @@ class DashboardView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.event_available,
-                      color: theme.colorScheme.secondary.withOpacity(0.5),
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                       size: 40,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'لا يوجد جلسات مجدولة لليوم',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -219,7 +243,7 @@ class DashboardView extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: InkWell(
         onTap: () {
@@ -233,7 +257,7 @@ class DashboardView extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: color.withOpacity(0.12),
+                backgroundColor: color.withValues(alpha: 0.12),
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(height: 8),

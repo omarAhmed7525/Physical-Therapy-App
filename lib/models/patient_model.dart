@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///
 /// Rules:
 /// - No business logic — only [fromMap], [toMap], and [copyWith].
-/// - [location] is nullable; use [_ClearLocation] sentinel in [copyWith]
+/// - [location] is nullable; use [clearLocation] in [copyWith]
 ///   to explicitly set it to null.
 class PatientModel {
   final String id;
@@ -23,6 +23,10 @@ class PatientModel {
   final double? commissionAmount;
   final int commissionSessionsCount;
 
+  // ── Treatment Plan / Package (Workstream C4) ──────────────────────────────
+  final int? planTotalSessions;
+  final DateTime? planStartDate;
+
   const PatientModel({
     required this.id,
     required this.name,
@@ -34,6 +38,8 @@ class PatientModel {
     this.commissionEnabled = false,
     this.commissionAmount,
     this.commissionSessionsCount = 0,
+    this.planTotalSessions,
+    this.planStartDate,
   });
 
   // ── Convenience Getters ────────────────────────────────────────────────────
@@ -61,6 +67,8 @@ class PatientModel {
       commissionEnabled: map['commissionEnabled'] as bool? ?? false,
       commissionAmount: (map['commissionAmount'] as num?)?.toDouble(),
       commissionSessionsCount: map['commissionSessionsCount'] as int? ?? 0,
+      planTotalSessions: (map['planTotalSessions'] as num?)?.toInt(),
+      planStartDate: (map['planStartDate'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -71,18 +79,22 @@ class PatientModel {
       'name': name,
       'phone': phone,
       'address': address,
-      'location': location, // null is a valid Firestore value (field not set)
+      'location': location,
       'medicalNotes': medicalNotes,
       'createdAt': Timestamp.fromDate(createdAt),
       'commissionEnabled': commissionEnabled,
       'commissionAmount': commissionAmount,
       'commissionSessionsCount': commissionSessionsCount,
+      'planTotalSessions': planTotalSessions,
+      'planStartDate':
+          planStartDate != null ? Timestamp.fromDate(planStartDate!) : null,
     };
   }
 
   // ── Immutable update ────────────────────────────────────────────────────────
 
   /// Pass [clearLocation] = true to explicitly set [location] to null.
+  /// Pass [clearPlan] = true to clear planTotalSessions and planStartDate.
   PatientModel copyWith({
     String? id,
     String? name,
@@ -96,6 +108,9 @@ class PatientModel {
     double? commissionAmount,
     int? commissionSessionsCount,
     bool clearCommissionAmount = false,
+    int? planTotalSessions,
+    DateTime? planStartDate,
+    bool clearPlan = false,
   }) {
     return PatientModel(
       id: id ?? this.id,
@@ -106,12 +121,17 @@ class PatientModel {
       medicalNotes: medicalNotes ?? this.medicalNotes,
       createdAt: createdAt ?? this.createdAt,
       commissionEnabled: commissionEnabled ?? this.commissionEnabled,
-      commissionAmount: clearCommissionAmount ? null : (commissionAmount ?? this.commissionAmount),
-      commissionSessionsCount: commissionSessionsCount ?? this.commissionSessionsCount,
+      commissionAmount: clearCommissionAmount
+          ? null
+          : (commissionAmount ?? this.commissionAmount),
+      commissionSessionsCount:
+          commissionSessionsCount ?? this.commissionSessionsCount,
+      planTotalSessions:
+          clearPlan ? null : (planTotalSessions ?? this.planTotalSessions),
+      planStartDate:
+          clearPlan ? null : (planStartDate ?? this.planStartDate),
     );
   }
-
-  // ── Equality & debugging ────────────────────────────────────────────────────
 
   @override
   bool operator ==(Object other) =>
@@ -125,5 +145,5 @@ class PatientModel {
 
   @override
   String toString() =>
-      'PatientModel(id: $id, name: $name, phone: $phone, commissionEnabled: $commissionEnabled, commissionSessionsCount: $commissionSessionsCount)';
+      'PatientModel(id: $id, name: $name, planTotalSessions: $planTotalSessions)';
 }

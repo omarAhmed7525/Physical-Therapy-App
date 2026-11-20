@@ -20,7 +20,7 @@ class IncomeCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [theme.colorScheme.primary.withOpacity(0.15), theme.colorScheme.secondary.withOpacity(0.05)]
+              ? [theme.colorScheme.primary.withValues(alpha: 0.15), theme.colorScheme.secondary.withValues(alpha: 0.05)]
               : [theme.colorScheme.primary, theme.colorScheme.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -30,13 +30,13 @@ class IncomeCard extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
               ],
         border: isDark
-            ? Border.all(color: theme.colorScheme.primary.withOpacity(0.3))
+            ? Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3))
             : null,
       ),
       child: Row(
@@ -49,7 +49,7 @@ class IncomeCard extends StatelessWidget {
                 Text(
                   'الدخل الشهري ($arabicMonthName)',
                   style: textTheme.titleMedium?.copyWith(
-                    color: isDark ? theme.colorScheme.primary : Colors.white.withOpacity(0.9),
+                    color: isDark ? theme.colorScheme.primary : Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -63,11 +63,11 @@ class IncomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'إجمالي المدفوعات من الجلسات المكتملة فقط',
+                  'إجمالي المدفوعات من الجلسات المكتملة + سداد المديونيات',
                   style: textTheme.bodySmall?.copyWith(
                     color: isDark
-                        ? theme.colorScheme.onSurface.withOpacity(0.5)
-                        : Colors.white.withOpacity(0.8),
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+                        : Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -76,8 +76,8 @@ class IncomeCard extends StatelessWidget {
           CircleAvatar(
             radius: 28,
             backgroundColor: isDark
-                ? theme.colorScheme.primary.withOpacity(0.2)
-                : Colors.white.withOpacity(0.2),
+                ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.2),
             child: const Icon(
               Icons.account_balance_wallet,
               size: 28,

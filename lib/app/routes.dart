@@ -4,6 +4,7 @@ import 'package:physical_therapy/features/patients/patients_view.dart';
 import 'package:physical_therapy/features/patients/add_patient_view.dart';
 import 'package:physical_therapy/features/patients/edit_patient_view.dart';
 import 'package:physical_therapy/features/patients/patient_details_view.dart';
+import 'package:physical_therapy/features/debts/debts_view.dart';
 import 'package:physical_therapy/features/schedule/schedule_view.dart';
 import 'package:physical_therapy/features/sessions/sessions_view.dart';
 import 'package:physical_therapy/features/sessions/add_session_view.dart';
@@ -78,6 +79,9 @@ abstract class AppRoutes {
 
       case schedule:
         return _fade(const ScheduleView());
+
+      case debts:
+        return _fade(const DebtsView());
 
       default:
         return _fade(

@@ -24,6 +24,9 @@ class _AddPatientViewState extends State<AddPatientView> {
   bool _commissionEnabled = false;
   final _commissionAmountController = TextEditingController();
 
+  bool _planEnabled = false;
+  final _planTotalSessionsController = TextEditingController();
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -33,6 +36,7 @@ class _AddPatientViewState extends State<AddPatientView> {
     _latController.dispose();
     _lngController.dispose();
     _commissionAmountController.dispose();
+    _planTotalSessionsController.dispose();
     super.dispose();
   }
 
@@ -72,6 +76,7 @@ class _AddPatientViewState extends State<AddPatientView> {
       longitude: lng,
       commissionEnabled: _commissionEnabled,
       commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
+      planTotalSessions: _planEnabled ? int.tryParse(_planTotalSessionsController.text.trim()) : null,
     );
 
     if (mounted) {
@@ -162,7 +167,7 @@ class _AddPatientViewState extends State<AddPatientView> {
             Text(
               'اختياري: أدخل الإحداثيات لتتمكن من فتح موقع المريض على خرائط جوجل مباشرة من شاشة تفاصيل المريض.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: 16),
@@ -172,6 +177,50 @@ class _AddPatientViewState extends State<AddPatientView> {
               hint: 'اكتب الحالة المرضية للمريض والتشخيص المبدئي...',
               prefixIcon: Icons.medical_services,
               maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('باقة علاج'),
+                    subtitle: const Text('تحديد عدد جلسات محدد كباقة للمريض'),
+                    value: _planEnabled,
+                    onChanged: (val) {
+                      setState(() {
+                        _planEnabled = val;
+                      });
+                    },
+                    secondary: Icon(
+                      Icons.inventory_2_outlined,
+                      color: _planEnabled ? theme.colorScheme.primary : theme.disabledColor,
+                    ),
+                  ),
+                  if (_planEnabled)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CustomTextField(
+                        controller: _planTotalSessionsController,
+                        label: 'عدد جلسات الباقة *',
+                        hint: 'مثال: 12',
+                        prefixIcon: Icons.format_list_numbered,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (_planEnabled) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'يرجى إدخال عدد الجلسات';
+                            }
+                            final count = int.tryParse(value.trim());
+                            if (count == null || count < 1) {
+                              return 'يرجى إدخال عدد صحيح أكبر من أو يساوي 1';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Card(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
@@ -180,6 +181,38 @@ class _AddSessionViewState extends State<AddSessionView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تسجيل الجلسة بنجاح')),
         );
+
+        // Check if plan state is low or finished after completed session (Workstream C4)
+        if (_selectedStatus == SessionStatus.completed) {
+          final patientProvider = context.read<PatientProvider>();
+          final patients = patientProvider.patients;
+          final matchingPatients = patients.where((p) => p.id == _selectedPatientId).toList();
+          final patient = matchingPatients.isNotEmpty ? matchingPatients.first : null;
+          if (patient != null &&
+              patient.planTotalSessions != null &&
+              patient.planStartDate != null) {
+            final remaining = PlanCalculator.calculateRemainingSessions(
+              patient: patient,
+              sessions: sessionProvider.sessions,
+            );
+            if (remaining == 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('انتهت الباقة'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+              );
+            } else if (remaining <= kPlanLowThreshold) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('قاربت الباقة على الانتهاء'),
+                  backgroundColor: Colors.orange.shade700,
+                ),
+              );
+            }
+          }
+        }
+
         Navigator.pop(context);
       }
     }
@@ -381,7 +414,7 @@ class _AddSessionViewState extends State<AddSessionView> {
 
               // ── Status Selection ───────────────────────────────────────────
               DropdownButtonFormField<SessionStatus>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 decoration: const InputDecoration(
                   labelText: 'حالة الجلسة *',
                   prefixIcon: Icon(Icons.info_outline),

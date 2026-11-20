@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/app/routes.dart';
+import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/services/maps_service.dart';
+import 'package:physical_therapy/core/utils/debt_calculator.dart';
+import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/features/sessions/widgets/session_card.dart';
 import 'package:physical_therapy/models/patient_model.dart';
+import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:physical_therapy/widgets/loading_widget.dart';
@@ -48,17 +52,20 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
     final success = await MapsService.openGoogleMaps(lat, lng);
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح خرائط جوجل')),
+        const SnackBar(content: Text('تعذر فتح خرائط Google')),
       );
     }
   }
 
   Future<void> _deletePatient() async {
-    final confirm = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('حذف المريض'),
-        content: Text('هل أنت متأكد من حذف المريض ${_currentPatient.name}؟ سيؤدي ذلك إلى حذف بياناته بالكامل.'),
+        title: const Text('تأكيد الحذف'),
+        content: Text(
+          'هل أنت متأكد من حذف المريض "${_currentPatient.name}"؟ '
+          'سيتم حذف جميع الجلسات وسجل العمولات والمديونيات المرتبطة به نهائياً.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -69,27 +76,27 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('حذف'),
+            child: const Text('حذف نهائي'),
           ),
         ],
       ),
     );
 
-    if (confirm == true && mounted) {
-      final patientProvider = context.read<PatientProvider>();
-      await patientProvider.deletePatient(_currentPatient.id);
+    if (confirmed == true && mounted) {
+      final provider = context.read<PatientProvider>();
+      await provider.deletePatient(_currentPatient.id);
 
       if (mounted) {
-        if (patientProvider.error != null) {
+        if (provider.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('حدث خطأ أثناء الحذف: ${patientProvider.error}'),
+              content: Text('حدث خطأ أثناء الحذف: ${provider.error}'),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم حذف المريض بنجاح')),
+            const SnackBar(content: Text('تم حذف المريض وجميع بياناته بنجاح')),
           );
           Navigator.pop(context);
         }
@@ -101,13 +108,44 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    // Listen to changes in the patient provider to keep this view updated if patient is edited.
-    final updatedPatients = context.watch<PatientProvider>().patients;
-    final index = updatedPatients.indexWhere((p) => p.id == _currentPatient.id);
-    if (index != -1) {
-      _currentPatient = updatedPatients[index];
-    }
+    final patientProvider = context.watch<PatientProvider>();
+    final sessionProvider = context.watch<SessionProvider>();
+    final debtProvider = context.watch<DebtProvider>();
+
+    final updatedPatient = patientProvider.patients.firstWhere(
+      (p) => p.id == _currentPatient.id,
+      orElse: () => _currentPatient,
+    );
+    _currentPatient = updatedPatient;
+
+    final sessions = sessionProvider.patientSessions(_currentPatient.id);
+    final allSessions = sessionProvider.sessions;
+    final debtPayments = debtProvider.debtPayments;
+
+    // Debt calculation (Workstream C3)
+    final outstandingDebt = DebtCalculator.calculateOutstandingDebt(
+      patientId: _currentPatient.id,
+      sessions: allSessions,
+      debtPayments: debtPayments,
+    );
+
+    // Plan calculation (Workstream C4)
+    final hasPlan = _currentPatient.planTotalSessions != null &&
+        _currentPatient.planStartDate != null;
+    final planUsed = PlanCalculator.calculateUsedSessions(
+      patient: _currentPatient,
+      sessions: allSessions,
+    );
+    final planRemaining = PlanCalculator.calculateRemainingSessions(
+      patient: _currentPatient,
+      sessions: allSessions,
+    );
+    final planState = PlanCalculator.getPlanState(
+      patient: _currentPatient,
+      sessions: allSessions,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -145,7 +183,7 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                         child: Icon(
                           Icons.person,
                           size: 32,
@@ -165,8 +203,10 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'رقم الهاتف: ${_currentPatient.phone}',
-                              style: textTheme.bodyMedium,
+                              _currentPatient.phone,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
                             ),
                           ],
                         ),
@@ -174,9 +214,10 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Divider(color: theme.dividerColor.withOpacity(0.3)),
-                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.location_on,
@@ -186,7 +227,9 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _currentPatient.address,
+                          _currentPatient.address.isNotEmpty
+                              ? _currentPatient.address
+                              : 'لا يوجد عنوان مسجل',
                           style: textTheme.bodyMedium,
                         ),
                       ),
@@ -247,9 +290,125 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
             ),
           ),
 
-          if (_currentPatient.commissionEnabled) ...[
+          // ── Outstanding Debt Row/Card (Workstream C3) ──────────────────────
+          if (outstandingDebt > 0)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              decoration: BoxDecoration(
+                color: (isDark ? AppColors.darkError : AppColors.lightError)
+                    .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (isDark ? AppColors.darkError : AppColors.lightError)
+                      .withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: isDark ? AppColors.darkError : AppColors.lightError,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'إجمالي المديونية المستحقة:',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '${outstandingDebt.toStringAsFixed(0)} ج.م',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: isDark ? AppColors.darkError : AppColors.lightError,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Treatment Plan / Package Card (Workstream C4) ──────────────────
+          if (hasPlan)
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              color: theme.colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'باقة العلاج',
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (planState == PlanState.low)
+                          Text(
+                            'قاربت الباقة على الانتهاء',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        else if (planState == PlanState.finished)
+                          Text(
+                            'انتهت الباقة',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: isDark ? AppColors.darkError : AppColors.lightError,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(
+                      value: _currentPatient.planTotalSessions! > 0
+                          ? (planUsed / _currentPatient.planTotalSessions!).clamp(0.0, 1.0)
+                          : 1.0,
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                      color: planState == PlanState.finished
+                          ? (isDark ? AppColors.darkError : AppColors.lightError)
+                          : (planState == PlanState.low
+                              ? (isDark ? AppColors.darkWarning : AppColors.lightWarning)
+                              : theme.colorScheme.primary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'المتبقي $planRemaining من ${_currentPatient.planTotalSessions} جلسات ($planUsed مكتملة)',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── Commission Tracking Card ──────────────────────────────────────
+          if (_currentPatient.commissionEnabled) ...[
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -257,8 +416,8 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: _currentPatient.commissionCycleState == 'due'
-                          ? theme.colorScheme.error.withOpacity(0.12)
-                          : Colors.amber.withOpacity(0.12),
+                          ? theme.colorScheme.error.withValues(alpha: 0.12)
+                          : Colors.amber.withValues(alpha: 0.12),
                       child: Icon(
                         Icons.monetization_on,
                         color: _currentPatient.commissionCycleState == 'due'
@@ -301,82 +460,20 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     ),
                     if (_currentPatient.commissionCycleState == 'due')
                       ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.error,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          minimumSize: Size.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
                         onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('تأكيد دفع العمولة'),
-                              content: Text('هل تم دفع عمولة بقيمة ${_currentPatient.commissionAmount?.toStringAsFixed(0)} جنيه للجهة المحيلة؟'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.error,
-                                  ),
-                                  child: const Text('تأكيد الدفع'),
-                                ),
-                              ],
-                            ),
-                          );
-
-                          if (confirm == true && mounted) {
-                            final patientProvider = context.read<PatientProvider>();
-                            await patientProvider.completeCommissionCycle(_currentPatient);
-                            if (mounted) {
-                              if (patientProvider.error != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('حدث خطأ: ${patientProvider.error}'),
-                                    backgroundColor: theme.colorScheme.error,
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('تم تسجيل دفع العمولة وتصفير الدورة بنجاح'),
-                                  ),
-                                );
-                              }
-                            }
+                          final provider = context.read<PatientProvider>();
+                          await provider.completeCommissionCycle(_currentPatient);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم تسجيل دفع العمولة بنجاح')),
+                            );
                           }
                         },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
                         child: const Text('تم الدفع'),
-                      )
-                    else if (_currentPatient.commissionCycleState == 'inProgress')
-                      Chip(
-                        backgroundColor: Colors.amber.withOpacity(0.12),
-                        side: const BorderSide(color: Colors.amber),
-                        label: Text(
-                          '${_currentPatient.commissionSessionsCount}/3 جلسات',
-                          style: const TextStyle(
-                            color: Colors.amber,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    else
-                      Chip(
-                        backgroundColor: theme.dividerColor.withOpacity(0.12),
-                        side: BorderSide(color: theme.dividerColor),
-                        label: const Text(
-                          '0/3 جلسات',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
                       ),
                   ],
                 ),
@@ -384,19 +481,19 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
             ),
           ],
 
-          // ── Sessions Header ────────────────────────────────────────────────
+          // ── Sessions Section Header ────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'الجلسات العلاجية',
+                  'سجل الجلسات (${sessions.length})',
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                TextButton.icon(
+                ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pushNamed(
                       context,
@@ -433,8 +530,6 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                   );
                 }
 
-                final sessions = sessionProvider.patientSessions(_currentPatient.id);
-
                 if (sessions.isEmpty) {
                   return Center(
                     child: Column(
@@ -443,13 +538,13 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                         Icon(
                           Icons.event_note,
                           size: 48,
-                          color: theme.colorScheme.primary.withOpacity(0.5),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'لا يوجد جلسات مسجلة لهذا المريض',
                           style: textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -463,7 +558,11 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final session = sessions[index];
-                    return SessionCard(session: session);
+                    return SessionCard(
+                      session: session,
+                      patientName: _currentPatient.name,
+                      patientPhone: _currentPatient.phone,
+                    );
                   },
                 );
               },

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/features/sessions/widgets/session_card.dart';
 import 'package:physical_therapy/models/session_model.dart';
+import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:provider/provider.dart';
@@ -38,6 +40,7 @@ class _ReportsViewState extends State<ReportsView> {
 
     final sessionProvider = context.watch<SessionProvider>();
     final patientProvider = context.watch<PatientProvider>();
+    final debtProvider = context.watch<DebtProvider>();
     final patientsMap = {for (var p in patientProvider.patients) p.id: p.name};
 
     // Filter sessions locally in real-time based on selected month and year
@@ -52,15 +55,25 @@ class _ReportsViewState extends State<ReportsView> {
     final postponedCount = monthlySessions.where((s) => s.status == SessionStatus.postponed).length;
     final cancelledCount = monthlySessions.where((s) => s.status == SessionStatus.cancelled).length;
 
-    // Monthly income = sum of paidAmount from completed sessions only
-    final totalIncome = monthlySessions
-        .where((s) => s.status == SessionStatus.completed)
-        .fold(0.0, (sum, s) => sum + s.paidAmount);
+    // Debt repayments in this month
+    final monthlyDebtPayments = debtProvider.debtPayments.where((p) {
+      return p.paidAt.year == _selectedYear && p.paidAt.month == _selectedMonth;
+    }).fold<double>(0.0, (sum, p) => sum + p.amount);
 
-    // Outstanding remaining amount from completed sessions
-    final outstandingAmount = monthlySessions
-        .where((s) => s.status == SessionStatus.completed)
-        .fold(0.0, (sum, s) => sum + s.remainingAmount);
+    // Monthly income = cash basis (completed sessions + debt repayments in that month)
+    final totalIncome = incomeForMonth(
+      sessions: sessionProvider.sessions,
+      debtPayments: debtProvider.debtPayments,
+      year: _selectedYear,
+      month: _selectedMonth,
+    );
+
+    // Current total outstanding across ALL patients (not month-filtered)
+    final totalCurrentOutstanding = DebtCalculator.calculateTotalOutstandingDebt(
+      patientIds: patientProvider.patients.map((p) => p.id).toList(),
+      sessions: sessionProvider.sessions,
+      debtPayments: debtProvider.debtPayments,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +89,7 @@ class _ReportsViewState extends State<ReportsView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _selectedMonth,
+                    initialValue: _selectedMonth,
                     decoration: const InputDecoration(
                       labelText: 'الشهر',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -100,7 +113,7 @@ class _ReportsViewState extends State<ReportsView> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _selectedYear,
+                    initialValue: _selectedYear,
                     decoration: const InputDecoration(
                       labelText: 'السنة',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -140,14 +153,15 @@ class _ReportsViewState extends State<ReportsView> {
                         '${totalIncome.toStringAsFixed(0)} ج.م',
                         Icons.account_balance_wallet,
                         isDark ? Colors.green.shade300 : Colors.green.shade700,
+                        subText: 'منها سداد مديونيات: ${monthlyDebtPayments.toStringAsFixed(0)} ج.م',
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildMetricCard(
                         context,
-                        'المبالغ المتبقية',
-                        '${outstandingAmount.toStringAsFixed(0)} ج.م',
+                        'إجمالي المديونيات الحالية',
+                        '${totalCurrentOutstanding.toStringAsFixed(0)} ج.م',
                         Icons.pending_actions,
                         isDark ? Colors.orange.shade300 : Colors.orange.shade700,
                       ),
@@ -174,7 +188,7 @@ class _ReportsViewState extends State<ReportsView> {
                             ),
                             CircleAvatar(
                               radius: 20,
-                              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                               child: Icon(
                                 Icons.analytics,
                                 color: theme.colorScheme.primary,
@@ -225,12 +239,12 @@ class _ReportsViewState extends State<ReportsView> {
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
                         ),
                         child: Text(
                           'لا يوجد سجل عمولات مدفوعة بعد',
                           style: textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       );
@@ -271,7 +285,7 @@ class _ReportsViewState extends State<ReportsView> {
                               // Patient header row
                               ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.green.withOpacity(0.12),
+                                  backgroundColor: Colors.green.withValues(alpha: 0.12),
                                   child: const Icon(Icons.person, color: Colors.green),
                                 ),
                                 title: Text(
@@ -339,21 +353,21 @@ class _ReportsViewState extends State<ReportsView> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                      border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.event_note,
-                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                           size: 48,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'لا توجد جلسات مسجلة في هذا الشهر',
                           style: textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -388,8 +402,9 @@ class _ReportsViewState extends State<ReportsView> {
     String label,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    String? subText,
+  }) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
@@ -397,7 +412,7 @@ class _ReportsViewState extends State<ReportsView> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -415,7 +430,7 @@ class _ReportsViewState extends State<ReportsView> {
             Text(
               label,
               style: textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 4),
@@ -426,6 +441,17 @@ class _ReportsViewState extends State<ReportsView> {
                 color: color,
               ),
             ),
+            if (subText != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subText,
+                style: textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -453,7 +479,7 @@ class _ReportsViewState extends State<ReportsView> {
         Text(
           label,
           style: textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
       ],
