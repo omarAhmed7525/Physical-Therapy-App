@@ -4,6 +4,7 @@ import 'package:physical_therapy/features/patients/patients_view.dart';
 import 'package:physical_therapy/features/patients/add_patient_view.dart';
 import 'package:physical_therapy/features/patients/edit_patient_view.dart';
 import 'package:physical_therapy/features/patients/patient_details_view.dart';
+import 'package:physical_therapy/features/schedule/schedule_view.dart';
 import 'package:physical_therapy/features/sessions/sessions_view.dart';
 import 'package:physical_therapy/features/sessions/add_session_view.dart';
 import 'package:physical_therapy/features/sessions/edit_session_view.dart';
@@ -27,6 +28,9 @@ abstract class AppRoutes {
   static const String editSession = '/sessions/edit';
   static const String reports = '/reports';
   static const String settings = '/settings';
+  static const String schedule = '/schedule';
+  static const String debts = '/debts';
+  static const String todayRoute = '/today-route';
 
   // ── Route generator ───────────────────────────────────────────────────────
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -52,6 +56,13 @@ abstract class AppRoutes {
         return _fade(const SessionsView());
 
       case addSession:
+        if (settings.arguments is AddSessionArgs) {
+          final args = settings.arguments as AddSessionArgs;
+          return _slide(AddSessionView(
+            patientId: args.patientId,
+            initialDateTime: args.initialDateTime,
+          ));
+        }
         final patientId = settings.arguments as String?;
         return _slide(AddSessionView(patientId: patientId));
 
@@ -64,6 +75,9 @@ abstract class AppRoutes {
 
       case AppRoutes.settings:
         return _fade(const SettingsView());
+
+      case schedule:
+        return _fade(const ScheduleView());
 
       default:
         return _fade(
