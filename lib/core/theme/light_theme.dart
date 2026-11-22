@@ -7,7 +7,7 @@ import 'package:physical_therapy/core/constants/app_colors.dart';
 abstract class LightTheme {
   static ThemeData build() {
     final base = ThemeData.light(useMaterial3: true);
-    final cairoText = GoogleFonts.cairoTextTheme(base.textTheme).apply(
+    final cairoText = GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme).apply(
       bodyColor: AppColors.lightTextPrimary,
       displayColor: AppColors.lightTextPrimary,
     );
@@ -30,7 +30,7 @@ abstract class LightTheme {
 
       // ── Typography ────────────────────────────────────────────────────────
       textTheme: cairoText,
-      primaryTextTheme: GoogleFonts.cairoTextTheme(base.primaryTextTheme),
+      primaryTextTheme: GoogleFonts.ibmPlexSansArabicTextTheme(base.primaryTextTheme),
 
       // ── AppBar ────────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
@@ -40,7 +40,7 @@ abstract class LightTheme {
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: AppColors.lightTextPrimary,
@@ -84,9 +84,9 @@ abstract class LightTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.lightError, width: 2),
         ),
-        labelStyle: GoogleFonts.cairo(color: AppColors.lightTextSecondary),
-        hintStyle: GoogleFonts.cairo(color: AppColors.lightTextSecondary),
-        errorStyle: GoogleFonts.cairo(color: AppColors.lightError, fontSize: 12),
+        labelStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.lightTextSecondary),
+        hintStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.lightTextSecondary),
+        errorStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.lightError, fontSize: 12),
       ),
 
       // ── Elevated button ───────────────────────────────────────────────────
@@ -97,7 +97,7 @@ abstract class LightTheme {
           elevation: 0,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -105,7 +105,7 @@ abstract class LightTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.lightPrimary,
-          textStyle: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -116,7 +116,7 @@ abstract class LightTheme {
           side: const BorderSide(color: AppColors.lightPrimary),
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -133,8 +133,8 @@ abstract class LightTheme {
         backgroundColor: AppColors.lightCard,
         selectedItemColor: AppColors.lightPrimary,
         unselectedItemColor: AppColors.lightTextSecondary,
-        selectedLabelStyle: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.cairo(fontSize: 12),
+        selectedLabelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 12),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
@@ -142,7 +142,7 @@ abstract class LightTheme {
       // ── Chip ──────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.lightBackground,
-        labelStyle: GoogleFonts.cairo(
+        labelStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 13,
           color: AppColors.lightTextPrimary,
         ),
@@ -163,12 +163,12 @@ abstract class LightTheme {
         backgroundColor: AppColors.lightCard,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.lightTextPrimary,
         ),
-        contentTextStyle: GoogleFonts.cairo(
+        contentTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 14,
           color: AppColors.lightTextSecondary,
         ),
@@ -177,7 +177,7 @@ abstract class LightTheme {
       // ── SnackBar ──────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.lightTextPrimary,
-        contentTextStyle: GoogleFonts.cairo(color: Colors.white, fontSize: 14),
+        contentTextStyle: GoogleFonts.ibmPlexSansArabic(color: Colors.white, fontSize: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
@@ -185,12 +185,12 @@ abstract class LightTheme {
       // ── ListTile ──────────────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
         iconColor: AppColors.lightTextSecondary,
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: AppColors.lightTextPrimary,
         ),
-        subtitleTextStyle: GoogleFonts.cairo(
+        subtitleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 13,
           color: AppColors.lightTextSecondary,
         ),
