@@ -34,20 +34,42 @@ class PhysioApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
-          return MaterialApp(
-            title: 'عيادة العلاج الطبيعي',
-            debugShowCheckedModeBanner: false,
-            themeMode: themeProvider.themeMode,
-            theme: LightTheme.build(),
-            darkTheme: DarkTheme.build(),
-            onGenerateRoute: AppRoutes.generateRoute,
-            builder: (context, child) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: child!,
+          return StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.userChanges(),
+            initialData: FirebaseAuth.instance.currentUser,
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+
+              return MaterialApp(
+                title: 'عيادة العلاج الطبيعي',
+                debugShowCheckedModeBanner: false,
+                themeMode: themeProvider.themeMode,
+                theme: LightTheme.build(),
+                darkTheme: DarkTheme.build(),
+                onGenerateRoute: AppRoutes.generateRoute,
+                builder: (context, child) {
+                  Widget content = Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: child!,
+                  );
+
+                  if (user != null) {
+                    content = MultiProvider(
+                      key: ValueKey(user.uid),
+                      providers: [
+                        ChangeNotifierProvider(create: (_) => PatientProvider()),
+                        ChangeNotifierProvider(create: (_) => SessionProvider()),
+                        ChangeNotifierProvider(create: (_) => DebtProvider()),
+                      ],
+                      child: content,
+                    );
+                  }
+
+                  return content;
+                },
+                home: const AuthGate(),
               );
             },
-            home: const AuthGate(),
           );
         },
       ),
@@ -57,7 +79,7 @@ class PhysioApp extends StatelessWidget {
 
 /// Reactive authentication gate.
 ///
-/// Listens to [FirebaseAuth.instance.authStateChanges] and shows:
+/// Listens to [FirebaseAuth.instance.userChanges] and shows:
 /// - A loading spinner while the auth state is being determined.
 /// - [LoginScreen] when the user is signed out.
 /// - [MigrationScreen] if the signed-in user is `kLegacyOwnerUid` and migration is pending.
@@ -85,23 +107,11 @@ class AuthGate extends StatelessWidget {
           }
 
           // Any new / non-legacy user goes directly to authenticated tree
-          return _buildAuthenticatedTree(user);
+          return const DashboardView();
         }
 
         return const LoginScreen();
       },
-    );
-  }
-
-  static Widget _buildAuthenticatedTree(User user) {
-    return MultiProvider(
-      key: ValueKey(user.uid),
-      providers: [
-        ChangeNotifierProvider(create: (_) => PatientProvider()),
-        ChangeNotifierProvider(create: (_) => SessionProvider()),
-        ChangeNotifierProvider(create: (_) => DebtProvider()),
-      ],
-      child: const DashboardView(),
     );
   }
 }
@@ -187,6 +197,6 @@ class _LegacyOwnerMigrationGateState extends State<_LegacyOwnerMigrationGate> {
       );
     }
 
-    return AuthGate._buildAuthenticatedTree(widget.user);
+    return const DashboardView();
   }
 }
