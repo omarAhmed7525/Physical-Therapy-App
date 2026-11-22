@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:physical_therapy/core/services/reminder_service.dart';
 import 'package:physical_therapy/core/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -133,6 +134,41 @@ class _SettingsViewState extends State<SettingsView> {
               value: themeProvider.isDarkMode,
               onChanged: (bool value) {
                 themeProvider.toggleTheme();
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Reminders Section ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+            child: Text(
+              'التذكيرات',
+              style: textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Card(
+            child: SwitchListTile(
+              secondary: Icon(
+                Icons.notifications_active_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              title: const Text(
+                'تذكيرات الجلسات',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'إشعار تنبيه قبل موعد الجلسة المحجوزة بـ 30 دقيقة',
+                style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+              ),
+              value: ReminderService().notificationsEnabled,
+              onChanged: (bool value) {
+                setState(() {
+                  ReminderService().setNotificationsEnabled(value);
+                });
               },
             ),
           ),
@@ -273,6 +309,7 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                   onTap: () async {
+                    await ReminderService().cancelAll();
                     await FirebaseAuth.instance.signOut();
                   },
                 ),

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:physical_therapy/app/routes.dart';
 import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/services/maps_service.dart';
+import 'package:physical_therapy/core/services/reminder_service.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
+import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/features/sessions/widgets/session_card.dart';
 import 'package:physical_therapy/models/patient_model.dart';
@@ -29,6 +31,20 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
   void initState() {
     super.initState();
     _currentPatient = widget.patient;
+  }
+
+  Future<void> _openWhatsApp() async {
+    if (_currentPatient.phone.isEmpty) return;
+    final message = 'مرحباً ${_currentPatient.name}، موعدك القادم في العيادة';
+    final success = await PhoneUtils.launchWhatsApp(
+      phone: _currentPatient.phone,
+      message: message,
+    );
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح واتساب')),
+      );
+    }
   }
 
   Future<void> _makeCall(String phone) async {
@@ -83,6 +99,11 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
     );
 
     if (confirmed == true && mounted) {
+      final sessionProvider = context.read<SessionProvider>();
+      final patientSessions = sessionProvider.patientSessions(_currentPatient.id);
+      for (final s in patientSessions) {
+        await ReminderService().cancelSessionReminder(s.id);
+      }
       final provider = context.read<PatientProvider>();
       await provider.deletePatient(_currentPatient.id);
 
@@ -270,13 +291,26 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                           ),
                         ),
                       ),
+                      if (_currentPatient.phone.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _openWhatsApp,
+                            icon: const Icon(Icons.chat),
+                            label: const Text('واتساب'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (_currentPatient.location != null) ...[
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: _openLocation,
                             icon: const Icon(Icons.map),
-                            label: const Text('الموقع الجغرافي'),
+                            label: const Text('الموقع'),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),

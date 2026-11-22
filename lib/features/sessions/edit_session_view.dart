@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:physical_therapy/core/services/reminder_service.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/session_model.dart';
@@ -140,6 +141,22 @@ class _EditSessionViewState extends State<EditSessionView> {
           const SnackBar(content: Text('تم تعديل الجلسة بنجاح')),
         );
 
+        // Cancel previous reminder and re-schedule if updated status is scheduled
+        await ReminderService().cancelSessionReminder(widget.session.id);
+        if (_selectedStatus == SessionStatus.scheduled) {
+          final patientProvider = context.read<PatientProvider>();
+          final patient = patientProvider.patients.cast<dynamic>().firstWhere(
+                (p) => p.id == widget.session.patientId,
+                orElse: () => null,
+              );
+          final pName = patient?.name ?? 'المريض';
+          await ReminderService().scheduleSessionReminder(
+            sessionId: widget.session.id,
+            patientName: pName,
+            sessionDate: fullScheduledDateTime,
+          );
+        }
+
         // Check if plan state is low or finished after completed session (Workstream C4)
         if (_selectedStatus == SessionStatus.completed) {
           final patientProvider = context.read<PatientProvider>();
@@ -201,6 +218,7 @@ class _EditSessionViewState extends State<EditSessionView> {
     if (confirm != true || !mounted) return;
 
     final sessionProvider = context.read<SessionProvider>();
+    await ReminderService().cancelSessionReminder(widget.session.id);
     await sessionProvider.deleteSession(
       widget.session.patientId,
       widget.session.id,

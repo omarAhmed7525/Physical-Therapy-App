@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/models/session_model.dart';
 
 class TodaySessionCard extends StatelessWidget {
@@ -121,11 +122,27 @@ class TodaySessionCard extends StatelessWidget {
                 ),
               ),
 
-              // ── Quick Call Action ──────────────────────────────────────────
+              // ── Quick Actions ──────────────────────────────────────────────
+              if (patientPhone != null && patientPhone!.isNotEmpty) ...[
+                IconButton.filledTonal(
+                  onPressed: () {
+                    final message = 'مرحباً، تذكير بموعد جلستك اليوم الساعة ${DateHelper.formatTime(session.date)}';
+                    PhoneUtils.launchWhatsApp(
+                      phone: patientPhone!,
+                      message: message,
+                    );
+                  },
+                  icon: const Icon(Icons.chat),
+                  color: theme.colorScheme.primary,
+                  tooltip: 'واتساب',
+                ),
+                const SizedBox(width: 8),
+              ],
               IconButton.filledTonal(
                 onPressed: onCallPressed,
                 icon: const Icon(Icons.phone),
                 color: theme.colorScheme.primary,
+                tooltip: 'اتصال',
               ),
             ],
           ),

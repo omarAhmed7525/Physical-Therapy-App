@@ -79,7 +79,7 @@ class SessionProvider extends ChangeNotifier {
   /// Add a new session under current user.
   /// Checks for conflicts (scheduled or completed).
   /// Computes remainingAmount securely: `(price - paidAmount).clamp(0, double.infinity)`
-  Future<void> addSession({
+  Future<String?> addSession({
     required String patientId,
     required DateTime date,
     int durationMinutes = 60,
@@ -122,7 +122,7 @@ class SessionProvider extends ChangeNotifier {
         notes: notes,
       );
 
-      await _sessionRepository.addSession(newSession);
+      final newId = await _sessionRepository.addSession(newSession);
 
       // Update patient commission count if enabled
       await _updatePatientCommissionOnMutation(
@@ -133,10 +133,12 @@ class SessionProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
+      return newId;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
+      return null;
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/models/session_model.dart';
 
 class SessionCard extends StatelessWidget {
@@ -91,20 +92,46 @@ class SessionCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.5)),
-                    ),
-                    child: Text(
-                      session.status.arabicLabel,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (patientPhone != null && patientPhone!.isNotEmpty)
+                        IconButton(
+                          icon: Icon(
+                            Icons.chat,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'إرسال واتساب',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            final formattedDate = DateFormat('yyyy/MM/dd').format(session.date);
+                            final message = 'مرحباً، تذكير بموعد جلستك يوم $formattedDate';
+                            PhoneUtils.launchWhatsApp(
+                              phone: patientPhone!,
+                              message: message,
+                            );
+                          },
+                        ),
+                      if (patientPhone != null && patientPhone!.isNotEmpty)
+                        const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          session.status.arabicLabel,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),

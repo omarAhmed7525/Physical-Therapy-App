@@ -249,6 +249,7 @@ class _DashboardViewState extends State<DashboardView> {
                   return TodaySessionCard(
                     session: session,
                     patientName: patientName,
+                    patientPhone: patientPhone.isNotEmpty ? patientPhone : null,
                     onCallPressed: () {
                       if (patientPhone.isNotEmpty) {
                         _makeCall(context, patientPhone);
