@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
@@ -212,6 +213,14 @@ class _ReportsViewState extends State<ReportsView> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+
+                // ── Monthly Income Trend (Bar Chart) ─────────────────────────
+                _buildIncomeBarChart(context, sessionProvider.sessions, debtProvider.debtPayments),
+                const SizedBox(height: 16),
+
+                // ── Daily Completed Sessions Trend (Line Chart) ──────────────
+                _buildDailyCompletedLineChart(context, monthlySessions),
                 const SizedBox(height: 24),
 
                 // ── Paid commissions history ──────────────────────────────────
@@ -483,6 +492,256 @@ class _ReportsViewState extends State<ReportsView> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Monthly Income Trend (Bar Chart) ───────────────────────────────────────
+  Widget _buildIncomeBarChart(
+    BuildContext context,
+    List<SessionModel> allSessions,
+    List<dynamic> allDebtPayments,
+  ) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    // Last 6 months up to selected year/month
+    final List<({int year, int month, double income})> monthsData = [];
+    for (int i = 5; i >= 0; i--) {
+      int y = _selectedYear;
+      int m = _selectedMonth - i;
+      while (m <= 0) {
+        m += 12;
+        y -= 1;
+      }
+      final inc = incomeForMonth(
+        sessions: allSessions,
+        debtPayments: allDebtPayments.cast(),
+        year: y,
+        month: m,
+      );
+      monthsData.add((year: y, month: m, income: inc));
+    }
+
+    double maxVal = 0;
+    for (final md in monthsData) {
+      if (md.income > maxVal) maxVal = md.income;
+    }
+    final maxY = maxVal > 0 ? (maxVal * 1.25) : 100.0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'اتجاه الدخل الشهري (آخر 6 أشهر)',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 220,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxY,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final md = monthsData[group.x.toInt()];
+                        final monthName = DateHelper.getArabicMonthName(md.month);
+                        return BarTooltipItem(
+                          '$monthName\n${rod.toY.toStringAsFixed(0)} ج.م',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= monthsData.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final m = monthsData[idx].month;
+                          final mName = DateHelper.getArabicMonthName(m);
+                          final shortName = mName.length > 4 ? mName.substring(0, 4) : mName;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6.0),
+                            child: Text(
+                              shortName,
+                              style: textTheme.bodySmall?.copyWith(fontSize: 10),
+                            ),
+                          );
+                        },
+                        reservedSize: 28,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 42,
+                        getTitlesWidget: (value, meta) {
+                          if (value == 0) return const SizedBox.shrink();
+                          return Text(
+                            value.toInt().toString(),
+                            style: textTheme.bodySmall?.copyWith(fontSize: 9),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: maxY / 4,
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: List.generate(monthsData.length, (idx) {
+                    final d = monthsData[idx];
+                    return BarChartGroupData(
+                      x: idx,
+                      barRods: [
+                        BarChartRodData(
+                          toY: d.income,
+                          color: theme.colorScheme.primary,
+                          width: 18,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Daily Completed Sessions Trend (Line Chart) ────────────────────────────
+  Widget _buildDailyCompletedLineChart(
+    BuildContext context,
+    List<SessionModel> monthlySessions,
+  ) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    final daysInMonth = DateUtils.getDaysInMonth(_selectedYear, _selectedMonth);
+    final Map<int, int> completedPerDay = {};
+    for (int day = 1; day <= daysInMonth; day++) {
+      completedPerDay[day] = 0;
+    }
+
+    for (final s in monthlySessions) {
+      if (s.status == SessionStatus.completed) {
+        completedPerDay[s.date.day] = (completedPerDay[s.date.day] ?? 0) + 1;
+      }
+    }
+
+    final spots = <FlSpot>[];
+    int maxCompleted = 0;
+    for (int day = 1; day <= daysInMonth; day++) {
+      final count = completedPerDay[day] ?? 0;
+      if (count > maxCompleted) maxCompleted = count;
+      spots.add(FlSpot(day.toDouble(), count.toDouble()));
+    }
+
+    final maxY = maxCompleted > 0 ? (maxCompleted + 1).toDouble() : 5.0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'الجلسات المكتملة يومياً لشهر ${DateHelper.getArabicMonthName(_selectedMonth)}',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  minX: 1,
+                  maxX: daysInMonth.toDouble(),
+                  minY: 0,
+                  maxY: maxY,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: 1,
+                  ),
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 5,
+                        getTitlesWidget: (value, meta) {
+                          if (value == 0 || value > daysInMonth) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              '${value.toInt()}',
+                              style: textTheme.bodySmall?.copyWith(fontSize: 10),
+                            ),
+                          );
+                        },
+                        reservedSize: 24,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            value.toInt().toString(),
+                            style: textTheme.bodySmall?.copyWith(fontSize: 10),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      color: theme.colorScheme.secondary,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
