@@ -414,6 +414,7 @@ class _AddSessionViewState extends State<AddSessionView> {
 
               // ── Status Selection ───────────────────────────────────────────
               DropdownButtonFormField<SessionStatus>(
+                key: ValueKey(_selectedStatus),
                 initialValue: _selectedStatus,
                 decoration: const InputDecoration(
                   labelText: 'حالة الجلسة *',
