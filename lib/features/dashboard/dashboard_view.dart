@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:physical_therapy/app/routes.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/features/dashboard/widgets/income_card.dart';
@@ -10,8 +11,15 @@ import 'package:physical_therapy/widgets/loading_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class DashboardView extends StatelessWidget {
+class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
+
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> {
+  DateTime? _lastBackPressTime;
 
   Future<void> _makeCall(BuildContext context, String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
@@ -46,8 +54,26 @@ class DashboardView extends StatelessWidget {
       month: now.month,
     );
 
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('اضغط مرة أخرى للخروج'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('عيادة العلاج الطبيعي'),
         actions: [
           IconButton(
@@ -226,6 +252,7 @@ class DashboardView extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
