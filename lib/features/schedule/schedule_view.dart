@@ -221,54 +221,61 @@ class _ScheduleViewState extends State<ScheduleView> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 80.0),
-      child: SizedBox(
-        height: totalHeight,
-        child: Stack(
-          children: [
-            // Hour horizontal grid lines & labels
-            for (int i = 0; i <= totalHours; i++) ...[
-              Positioned(
-                top: i * hourHeight,
-                left: 0,
-                right: 0,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        '${(minHour + i).toString().padLeft(2, '0')}:00',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth = constraints.maxWidth - 68;
+
+          return SizedBox(
+            height: totalHeight,
+            child: Stack(
+              children: [
+                // Hour horizontal grid lines & labels
+                for (int i = 0; i <= totalHours; i++) ...[
+                  Positioned(
+                    top: i * hourHeight,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 60,
+                          child: Text(
+                            '${(minHour + i).toString().padLeft(2, '0')}:00',
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ),
                         ),
-                      ),
+                        Expanded(
+                          child: Divider(
+                            height: 1,
+                            color: theme.dividerColor.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Divider(
-                        height: 1,
-                        color: theme.dividerColor.withValues(alpha: 0.5),
-                      ),
+                  ),
+                ],
+
+                // Session Blocks
+                for (final cluster in clusters)
+                  for (int colIndex = 0; colIndex < cluster.length; colIndex++) ...[
+                    _buildSessionBlock(
+                      context: context,
+                      session: cluster[colIndex],
+                      patientName: patientsMap[cluster[colIndex].patientId] ?? 'مريض غير معروف',
+                      minHour: minHour,
+                      hourHeight: hourHeight,
+                      colIndex: colIndex,
+                      totalCols: cluster.length,
+                      availableWidth: availableWidth,
                     ),
                   ],
-                ),
-              ),
-            ],
-
-            // Session Blocks
-            for (final cluster in clusters)
-              for (int colIndex = 0; colIndex < cluster.length; colIndex++) ...[
-                _buildSessionBlock(
-                  context: context,
-                  session: cluster[colIndex],
-                  patientName: patientsMap[cluster[colIndex].patientId] ?? 'مريض غير معروف',
-                  minHour: minHour,
-                  hourHeight: hourHeight,
-                  colIndex: colIndex,
-                  totalCols: cluster.length,
-                ),
               ],
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -312,70 +319,68 @@ class _ScheduleViewState extends State<ScheduleView> {
     required double hourHeight,
     required int colIndex,
     required int totalCols,
+    required double availableWidth,
   }) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
     final startMinutes = (session.date.hour - minHour) * 60 + session.date.minute;
     final top = (startMinutes / 60.0) * hourHeight;
-    final height = (session.durationMinutes / 60.0) * hourHeight;
+    final duration = session.durationMinutes > 0 ? session.durationMinutes : 60;
+    final height = (duration / 60.0) * hourHeight;
     final statusColor = _getStatusColor(session.status, theme);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Timeline margin on left is 60px for hour labels
-        final availableWidth = constraints.maxWidth - 68;
-        final colWidth = availableWidth / totalCols;
-        final leftOffset = 64 + (colIndex * colWidth);
+    final safeTotalCols = totalCols > 0 ? totalCols : 1;
+    final safeAvailableWidth = availableWidth > 0 ? availableWidth : 200.0;
+    final colWidth = safeAvailableWidth / safeTotalCols;
+    final leftOffset = 64.0 + (colIndex * colWidth);
 
-        return Positioned(
-          top: top,
-          left: leftOffset,
-          width: colWidth - 4,
-          height: height.clamp(28.0, 400.0),
-          child: InkWell(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.editSession,
-                arguments: session,
-              );
-            },
+    return Positioned(
+      top: top,
+      left: leftOffset,
+      width: (colWidth - 4).clamp(20.0, double.infinity),
+      height: height.clamp(24.0, 400.0),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.editSession,
+            arguments: session,
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: statusColor.withValues(alpha: 0.8), width: 1.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    patientName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    DateHelper.formatTime(session.date),
-                    maxLines: 1,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            border: Border.all(color: statusColor.withValues(alpha: 0.8), width: 1.5),
           ),
-        );
-      },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                patientName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                DateHelper.formatTime(session.date),
+                maxLines: 1,
+                style: textTheme.labelSmall?.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
