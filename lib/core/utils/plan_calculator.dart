@@ -3,7 +3,7 @@ import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/models/session_model.dart';
 
 /// Low threshold for remaining plan sessions
-const int kPlanLowThreshold = 2;
+const int kPlanLowThreshold = 1;
 
 enum PlanState { none, normal, low, finished }
 
@@ -44,7 +44,7 @@ class PlanCalculator {
   /// Returns the current state of the plan:
   /// - `none`: no plan configured
   /// - `finished`: remaining == 0
-  /// - `low`: 0 < remaining <= kPlanLowThreshold (2)
+  /// - `low`: remaining == kPlanLowThreshold (1)
   /// - `normal`: remaining > kPlanLowThreshold
   static PlanState getPlanState({
     required PatientModel patient,
