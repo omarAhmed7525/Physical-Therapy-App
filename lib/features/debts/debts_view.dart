@@ -247,7 +247,7 @@ class DebtsView extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'لا توجد مديونيات معلقة حالياً 🎉',
+                          'لا توجد مديونيات معلقة حالياً',
                           style: textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
