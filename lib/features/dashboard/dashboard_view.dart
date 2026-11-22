@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:physical_therapy/app/routes.dart';
@@ -93,11 +94,22 @@ class _DashboardViewState extends State<DashboardView> {
           padding: const EdgeInsets.all(16.0),
           children: [
             // ── Welcome Banner ───────────────────────────────────────────────
-            Text(
-              'مرحباً بك 👋',
-              style: textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+            StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.userChanges(),
+              initialData: FirebaseAuth.instance.currentUser,
+              builder: (context, userSnapshot) {
+                final user = userSnapshot.data;
+                final name = user?.displayName?.trim();
+                final greeting = (name != null && name.isNotEmpty)
+                    ? 'مرحباً بك دكتور $name'
+                    : 'مرحباً بك دكتور';
+                return Text(
+                  greeting,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 4),
             Text(
