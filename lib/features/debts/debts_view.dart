@@ -243,7 +243,7 @@ class DebtsView extends StatelessWidget {
                         Icon(
                           Icons.check_circle_outline,
                           size: 64,
-                          color: Colors.green.withValues(alpha: 0.6),
+                          color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.6),
                         ),
                         const SizedBox(height: 16),
                         Text(

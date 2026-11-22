@@ -144,42 +144,36 @@ class _DashboardViewState extends State<DashboardView> {
                   context,
                   'المرضى',
                   Icons.people,
-                  theme.colorScheme.primary,
                   AppRoutes.patients,
                 ),
                 _buildGridItem(
                   context,
                   'الجلسات',
                   Icons.event_note,
-                  theme.colorScheme.secondary,
                   AppRoutes.sessions,
                 ),
                 _buildGridItem(
                   context,
                   'التقارير',
                   Icons.analytics,
-                  Colors.purple,
                   AppRoutes.reports,
                 ),
                 _buildGridItem(
                   context,
                   'الجدول',
                   Icons.calendar_month,
-                  Colors.teal,
                   AppRoutes.schedule,
                 ),
                 _buildGridItem(
                   context,
                   'المديونيات',
                   Icons.account_balance_wallet,
-                  Colors.red,
                   AppRoutes.debts,
                 ),
                 _buildGridItem(
                   context,
                   'خريطة اليوم',
                   Icons.route,
-                  Colors.indigo,
                   AppRoutes.todayRoute,
                 ),
               ],
@@ -280,7 +274,6 @@ class _DashboardViewState extends State<DashboardView> {
     BuildContext context,
     String title,
     IconData icon,
-    Color color,
     String route,
   ) {
     final theme = Theme.of(context);
@@ -302,11 +295,7 @@ class _DashboardViewState extends State<DashboardView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: color.withValues(alpha: 0.12),
-                child: Icon(icon, color: color, size: 22),
-              ),
+              Icon(icon, color: theme.colorScheme.primary, size: 24),
               const SizedBox(height: 8),
               Text(
                 title,

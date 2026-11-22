@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/services/reminder_service.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
@@ -178,10 +179,11 @@ class _EditSessionViewState extends State<EditSessionView> {
                 ),
               );
             } else if (remaining <= kPlanLowThreshold) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('قاربت الباقة على الانتهاء'),
-                  backgroundColor: Colors.orange.shade700,
+                  backgroundColor: isDark ? AppColors.darkWarning : AppColors.lightWarning,
                 ),
               );
             }

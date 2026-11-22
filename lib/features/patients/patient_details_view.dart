@@ -447,17 +447,12 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: _currentPatient.commissionCycleState == 'due'
-                          ? theme.colorScheme.error.withValues(alpha: 0.12)
-                          : Colors.amber.withValues(alpha: 0.12),
-                      child: Icon(
-                        Icons.monetization_on,
-                        color: _currentPatient.commissionCycleState == 'due'
-                            ? theme.colorScheme.error
-                            : Colors.amber,
-                      ),
+                    Icon(
+                      Icons.monetization_on,
+                      color: _currentPatient.commissionCycleState == 'due'
+                          ? (isDark ? AppColors.darkError : AppColors.lightError)
+                          : (isDark ? AppColors.darkWarning : AppColors.lightWarning),
+                      size: 24,
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -504,7 +499,7 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text('تم الدفع'),

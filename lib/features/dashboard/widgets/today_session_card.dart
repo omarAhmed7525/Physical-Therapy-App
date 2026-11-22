@@ -53,26 +53,15 @@ class TodaySessionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // ── Time & Icon indicator ──────────────────────────────────────
-              Column(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    child: Icon(
-                      Icons.access_time_filled,
-                      color: theme.colorScheme.primary,
-                      size: 24,
-                    ),
+              // ── Time indicator ────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  DateHelper.formatTime(session.date),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    DateHelper.formatTime(session.date),
-                    style: textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(width: 16),
 

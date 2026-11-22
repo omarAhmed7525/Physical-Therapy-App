@@ -60,8 +60,8 @@ class PatientCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: patient.commissionCycleState == 'due'
-                                  ? theme.colorScheme.error
-                                  : Colors.amber,
+                                  ? (isDark ? AppColors.darkError : AppColors.lightError)
+                                  : (isDark ? AppColors.darkWarning : AppColors.lightWarning),
                             ),
                           ),
                         ],
@@ -114,7 +114,7 @@ class PatientCard extends StatelessWidget {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ],
               ),
@@ -124,7 +124,7 @@ class PatientCard extends StatelessWidget {
                   Icon(
                     Icons.phone,
                     size: 16,
-                    color: theme.colorScheme.secondary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -139,7 +139,7 @@ class PatientCard extends StatelessWidget {
                   Icon(
                     Icons.location_on,
                     size: 16,
-                    color: theme.colorScheme.secondary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Expanded(

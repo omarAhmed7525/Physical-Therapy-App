@@ -239,14 +239,10 @@ class _SettingsViewState extends State<SettingsView> {
               children: [
                 if (user != null) ...[
                   ListTile(
-                    leading: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-                      child: Icon(
-                        Icons.person,
-                        color: theme.colorScheme.primary,
-                        size: 20,
-                      ),
+                    leading: Icon(
+                      Icons.person,
+                      color: theme.colorScheme.primary,
+                      size: 24,
                     ),
                     title: const Text(
                       'الاسم',
@@ -271,14 +267,10 @@ class _SettingsViewState extends State<SettingsView> {
                   const Divider(height: 1),
                 ],
                 ListTile(
-                  leading: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: theme.colorScheme.error.withValues(alpha: 0.12),
-                    child: Icon(
-                      Icons.logout,
-                      color: theme.colorScheme.error,
-                      size: 20,
-                    ),
+                  leading: Icon(
+                    Icons.logout,
+                    color: theme.colorScheme.error,
+                    size: 24,
                   ),
                   title: Text(
                     'تسجيل الخروج',

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/features/sessions/widgets/session_card.dart';
@@ -153,7 +154,7 @@ class _ReportsViewState extends State<ReportsView> {
                         'الدخل المستلم',
                         '${totalIncome.toStringAsFixed(0)} ج.م',
                         Icons.account_balance_wallet,
-                        isDark ? Colors.green.shade300 : Colors.green.shade700,
+                        isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                         subText: 'منها سداد مديونيات: ${monthlyDebtPayments.toStringAsFixed(0)} ج.م',
                       ),
                     ),
@@ -164,7 +165,7 @@ class _ReportsViewState extends State<ReportsView> {
                         'إجمالي المديونيات الحالية',
                         '${totalCurrentOutstanding.toStringAsFixed(0)} ج.م',
                         Icons.pending_actions,
-                        isDark ? Colors.orange.shade300 : Colors.orange.shade700,
+                        isDark ? AppColors.darkWarning : AppColors.lightWarning,
                       ),
                     ),
                   ],
@@ -187,14 +188,10 @@ class _ReportsViewState extends State<ReportsView> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                              child: Icon(
-                                Icons.analytics,
-                                color: theme.colorScheme.primary,
-                                size: 20,
-                              ),
+                            Icon(
+                              Icons.analytics,
+                              color: theme.colorScheme.primary,
+                              size: 24,
                             ),
                           ],
                         ),
@@ -204,9 +201,9 @@ class _ReportsViewState extends State<ReportsView> {
                           children: [
                             _buildStatColumn(context, 'الإجمالي', totalSessions.toString(), theme.colorScheme.primary),
                             _buildStatColumn(context, 'محجوزة', scheduledCount.toString(), theme.colorScheme.primary),
-                            _buildStatColumn(context, 'مكتملة', completedCount.toString(), Colors.green),
-                            _buildStatColumn(context, 'مؤجلة', postponedCount.toString(), Colors.orange),
-                            _buildStatColumn(context, 'ملغاة', cancelledCount.toString(), Colors.red),
+                            _buildStatColumn(context, 'مكتملة', completedCount.toString(), isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
+                            _buildStatColumn(context, 'مؤجلة', postponedCount.toString(), isDark ? AppColors.darkWarning : AppColors.lightWarning),
+                            _buildStatColumn(context, 'ملغاة', cancelledCount.toString(), isDark ? AppColors.darkError : AppColors.lightError),
                           ],
                         ),
                       ],
@@ -293,9 +290,10 @@ class _ReportsViewState extends State<ReportsView> {
                             children: [
                               // Patient header row
                               ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.green.withValues(alpha: 0.12),
-                                  child: const Icon(Icons.person, color: Colors.green),
+                                leading: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
                                 ),
                                 title: Text(
                                   patientName,
@@ -305,7 +303,6 @@ class _ReportsViewState extends State<ReportsView> {
                                 trailing: Text(
                                   '${totalPaid.toStringAsFixed(0)} ج.م',
                                   style: textTheme.titleMedium?.copyWith(
-                                    color: Colors.green,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -319,9 +316,9 @@ class _ReportsViewState extends State<ReportsView> {
                                     '${paidAt.year}/${paidAt.month.toString().padLeft(2, '0')}/${paidAt.day.toString().padLeft(2, '0')}';
                                 return ListTile(
                                   dense: true,
-                                  leading: const Icon(
+                                  leading: Icon(
                                     Icons.check_circle_outline,
-                                    color: Colors.green,
+                                    color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                                     size: 18,
                                   ),
                                   title: Text(
@@ -331,7 +328,6 @@ class _ReportsViewState extends State<ReportsView> {
                                   trailing: Text(
                                     '${entryAmount.toStringAsFixed(0)} ج.م',
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color: Colors.green,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
