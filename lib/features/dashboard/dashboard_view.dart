@@ -175,6 +175,13 @@ class _DashboardViewState extends State<DashboardView> {
                   Colors.red,
                   AppRoutes.debts,
                 ),
+                _buildGridItem(
+                  context,
+                  'خريطة اليوم',
+                  Icons.route,
+                  Colors.indigo,
+                  AppRoutes.todayRoute,
+                ),
               ],
             ),
             const SizedBox(height: 28),

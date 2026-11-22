@@ -10,6 +10,7 @@ import 'package:physical_therapy/features/sessions/sessions_view.dart';
 import 'package:physical_therapy/features/sessions/add_session_view.dart';
 import 'package:physical_therapy/features/sessions/edit_session_view.dart';
 import 'package:physical_therapy/features/reports/reports_view.dart';
+import 'package:physical_therapy/features/route/today_route_view.dart';
 import 'package:physical_therapy/features/settings/settings_view.dart';
 import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/models/session_model.dart';
@@ -82,6 +83,9 @@ abstract class AppRoutes {
 
       case debts:
         return _fade(const DebtsView());
+
+      case todayRoute:
+        return _fade(const TodayRouteView());
 
       default:
         return _fade(
