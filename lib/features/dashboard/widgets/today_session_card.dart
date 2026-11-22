@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:physical_therapy/app/routes.dart';
-import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/core/constants/app_colors.dart';
+import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/phone_utils.dart';
+import 'package:physical_therapy/models/session_model.dart';
 
 class TodaySessionCard extends StatelessWidget {
   final SessionModel session;
   final String patientName;
+  final String? patientPhone;
   final VoidCallback onCallPressed;
 
   const TodaySessionCard({
     super.key,
     required this.session,
     required this.patientName,
+    this.patientPhone,
     required this.onCallPressed,
   });
 
   Color _getStatusColor(SessionStatus status, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     switch (status) {
+      case SessionStatus.scheduled:
+        return theme.colorScheme.primary;
       case SessionStatus.completed:
         return isDark ? AppColors.darkSuccess : AppColors.lightSuccess;
       case SessionStatus.postponed:
@@ -39,7 +44,7 @@ class TodaySessionCard extends StatelessWidget {
         onTap: () {
           Navigator.pushNamed(
             context,
-            AppRoutes.editSession,
+            '/sessions/edit',
             arguments: session,
           );
         },
@@ -48,26 +53,15 @@ class TodaySessionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // ── Time & Icon indicator ──────────────────────────────────────
-              Column(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                    child: Icon(
-                      Icons.access_time_filled,
-                      color: theme.colorScheme.primary,
-                      size: 24,
-                    ),
+              // ── Time indicator ────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  DateHelper.formatTime(session.date),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    session.time,
-                    style: textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(width: 16),
 
@@ -81,8 +75,6 @@ class TodaySessionCard extends StatelessWidget {
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -90,43 +82,56 @@ class TodaySessionCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.15),
+                            color: statusColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: statusColor.withOpacity(0.4)),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
                           ),
                           child: Text(
                             session.status.arabicLabel,
-                            style: textTheme.labelSmall?.copyWith(
+                            style: textTheme.bodySmall?.copyWith(
                               color: statusColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          '${session.price.toStringAsFixed(0)} ج.م',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        if (session.remainingAmount > 0)
+                          Text(
+                            'متبقي: ${session.remainingAmount.toStringAsFixed(0)} ج.م',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.darkError
+                                  : AppColors.lightError,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ],
                 ),
               ),
 
-              // ── Action Buttons ─────────────────────────────────────────────
-              IconButton(
-                icon: Icon(
-                  Icons.phone_in_talk,
-                  color: theme.colorScheme.secondary,
+              // ── Quick Actions ──────────────────────────────────────────────
+              if (patientPhone != null && patientPhone!.isNotEmpty) ...[
+                IconButton.filledTonal(
+                  onPressed: () {
+                    final message = 'مرحباً، تذكير بموعد جلستك اليوم الساعة ${DateHelper.formatTime(session.date)}';
+                    PhoneUtils.launchWhatsApp(
+                      phone: patientPhone!,
+                      message: message,
+                    );
+                  },
+                  icon: const Icon(Icons.chat),
+                  color: theme.colorScheme.primary,
+                  tooltip: 'واتساب',
                 ),
+                const SizedBox(width: 8),
+              ],
+              IconButton.filledTonal(
                 onPressed: onCallPressed,
-                tooltip: 'اتصال بالمريض',
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                icon: const Icon(Icons.phone),
+                color: theme.colorScheme.primary,
+                tooltip: 'اتصال',
               ),
             ],
           ),

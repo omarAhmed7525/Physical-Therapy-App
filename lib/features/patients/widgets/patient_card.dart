@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:physical_therapy/app/routes.dart';
+import 'package:physical_therapy/core/constants/app_colors.dart';
+import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/patient_model.dart';
+import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:provider/provider.dart';
 
 class PatientCard extends StatelessWidget {
   final PatientModel patient;
+  final VoidCallback onTap;
 
-  const PatientCard({super.key, required this.patient});
+  const PatientCard({
+    super.key,
+    required this.patient,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final sessions = context.watch<SessionProvider>().sessions;
+    final planState = PlanCalculator.getPlanState(
+      patient: patient,
+      sessions: sessions,
+    );
 
     return Card(
       child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.patientDetails,
-            arguments: patient,
-          );
-        },
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -51,8 +60,52 @@ class PatientCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: patient.commissionCycleState == 'due'
-                                  ? theme.colorScheme.error
-                                  : Colors.amber,
+                                  ? (isDark ? AppColors.darkError : AppColors.lightError)
+                                  : (isDark ? AppColors.darkWarning : AppColors.lightWarning),
+                            ),
+                          ),
+                        ],
+                        // Treatment Plan status chip (Workstream C4)
+                        if (planState == PlanState.low) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (isDark ? AppColors.darkWarning : AppColors.lightWarning)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: (isDark ? AppColors.darkWarning : AppColors.lightWarning)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'قاربت الباقة على الانتهاء',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ] else if (planState == PlanState.finished) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (isDark ? AppColors.darkError : AppColors.lightError)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: (isDark ? AppColors.darkError : AppColors.lightError)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'انتهت الباقة',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: isDark ? AppColors.darkError : AppColors.lightError,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -61,7 +114,7 @@ class PatientCard extends StatelessWidget {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ],
               ),
@@ -71,7 +124,7 @@ class PatientCard extends StatelessWidget {
                   Icon(
                     Icons.phone,
                     size: 16,
-                    color: theme.colorScheme.secondary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -86,14 +139,14 @@ class PatientCard extends StatelessWidget {
                   Icon(
                     Icons.location_on,
                     size: 16,
-                    color: theme.colorScheme.secondary,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       patient.address.isNotEmpty ? patient.address : 'لا يوجد عنوان مسجل',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -110,7 +163,7 @@ class PatientCard extends StatelessWidget {
                     color: theme.scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: theme.dividerColor.withOpacity(0.5),
+                      color: theme.dividerColor.withValues(alpha: 0.5),
                     ),
                   ),
                   child: Column(

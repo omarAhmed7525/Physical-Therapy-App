@@ -38,31 +38,49 @@ class PatientRepository {
     await _firebaseService.patientDoc(patient.id).update(patient.toMap());
   }
 
-  /// Delete a patient and ALL associated subcollections atomically via a WriteBatch.
-  /// Deletes: sessions, commissionHistory, and the patient document itself — in
-  /// one atomic commit so there are never orphaned subcollection documents.
+  /// Delete a patient and ALL associated data (sessions, commissionHistory, debtPayments)
+  /// using chunked batches (max 400 ops per batch).
   Future<void> deletePatient(String patientId) async {
-    final batch = _firebaseService.batch;
-    final patientRef = _firebaseService.patientDoc(patientId);
+    // 1. Gather all documents to delete
+    final sessionsSnapshot = await _firebaseService.sessionsCollection
+        .where('patientId', isEqualTo: patientId)
+        .get();
 
-    // 1. Query and batch-delete all sessions
-    final sessionsSnapshot = await _firebaseService.sessionsCollection(patientId).get();
+    final commissionsSnapshot = await _firebaseService.commissionHistoryCollection
+        .where('patientId', isEqualTo: patientId)
+        .get();
+
+    final debtsSnapshot = await _firebaseService.debtPaymentsCollection
+        .where('patientId', isEqualTo: patientId)
+        .get();
+
+    final List<DocumentReference<Map<String, dynamic>>> docsToDelete = [];
+
     for (final doc in sessionsSnapshot.docs) {
-      batch.delete(doc.reference);
+      docsToDelete.add(doc.reference);
     }
-
-    // 2. Query and batch-delete all commissionHistory entries
-    final commissionSnapshot =
-        await patientRef.collection('commissionHistory').get();
-    for (final doc in commissionSnapshot.docs) {
-      batch.delete(doc.reference);
+    for (final doc in commissionsSnapshot.docs) {
+      docsToDelete.add(doc.reference);
     }
+    for (final doc in debtsSnapshot.docs) {
+      docsToDelete.add(doc.reference);
+    }
+    docsToDelete.add(_firebaseService.patientDoc(patientId));
 
-    // 3. Delete the patient document itself (always last)
-    batch.delete(patientRef);
+    // Commit in chunks of <= 400 ops
+    const chunkSize = 400;
+    for (int i = 0; i < docsToDelete.length; i += chunkSize) {
+      final end = (i + chunkSize < docsToDelete.length)
+          ? i + chunkSize
+          : docsToDelete.length;
+      final chunk = docsToDelete.sublist(i, end);
 
-    // 4. Commit everything atomically
-    await batch.commit();
+      final batch = _firebaseService.batch;
+      for (final ref in chunk) {
+        batch.delete(ref);
+      }
+      await batch.commit();
+    }
   }
 
   /// Fetch a single patient by ID.
@@ -75,10 +93,7 @@ class PatientRepository {
   }
 
   /// Completes a patient's commission cycle.
-  /// Resets commissionSessionsCount to 0 and logs the payment in the
-  /// commissionHistory subcollection — including [patientName] so that the
-  /// Reports screen can display the name without a secondary in-memory lookup
-  /// (which can fail when the stream resolves before patients have loaded).
+  /// Resets commissionSessionsCount to 0 and logs payment in `users/{uid}/commissionHistory`.
   Future<void> completeCommissionCycle(
     String patientId,
     double amountPaid,
@@ -86,43 +101,27 @@ class PatientRepository {
   ) async {
     final batch = _firebaseService.batch;
     final patientRef = _firebaseService.patientDoc(patientId);
-
-    // Create new history log document reference
-    final historyDocRef = patientRef.collection('commissionHistory').doc();
+    final historyDocRef = _firebaseService.commissionHistoryCollection.doc();
 
     batch.update(patientRef, {'commissionSessionsCount': 0});
     batch.set(historyDocRef, {
+      'patientId': patientId,
+      'patientName': patientName,
       'amount': amountPaid,
       'paidAt': FieldValue.serverTimestamp(),
-      // Store the name at write-time so the Reports screen never needs a
-      // secondary lookup that could race against PatientProvider loading.
-      'patientName': patientName,
     });
 
     await batch.commit();
   }
 
-  /// Stream of all paid commissions across all patients (using Collection Group).
-  ///
-  /// Each map contains:
-  ///   - `patientId`   : Firestore patient document ID (from path segment [1])
-  ///   - `patientName` : Name stored at write-time (avoids in-memory lookup race)
-  ///   - `amount`      : Commission amount paid
-  ///   - `paidAt`      : Payment timestamp
+  /// Stream of all paid commissions across all patients for the current user.
   Stream<List<Map<String, dynamic>>> getCommissionHistoryStream() {
     return _firebaseService.commissionHistoryQuery().snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        // Path structure: patients/{patientId}/commissionHistory/{docId}
-        // Segments after split('/'): [0]=patients  [1]=patientId  [2]=commissionHistory  [3]=docId
-        final pathSegments = doc.reference.path.split('/');
-        final patientId = pathSegments.length >= 4 ? pathSegments[1] : '';
         final data = doc.data();
-
         return {
           'id': doc.id,
-          'patientId': patientId,
-          // Use the name stored at write-time; fall back to empty string so
-          // the UI can still try the in-memory patients map as a secondary source.
+          'patientId': data['patientId'] as String? ?? '',
           'patientName': data['patientName'] as String? ?? '',
           'amount': (data['amount'] as num?)?.toDouble() ?? 0.0,
           'paidAt': (data['paidAt'] as Timestamp?)?.toDate() ?? DateTime.now(),

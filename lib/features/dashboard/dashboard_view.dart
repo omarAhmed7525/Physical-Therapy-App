@@ -1,15 +1,26 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:physical_therapy/app/routes.dart';
+import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/features/dashboard/widgets/income_card.dart';
 import 'package:physical_therapy/features/dashboard/widgets/today_session_card.dart';
+import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:physical_therapy/widgets/loading_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class DashboardView extends StatelessWidget {
+class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
+
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> {
+  DateTime? _lastBackPressTime;
 
   Future<void> _makeCall(BuildContext context, String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
@@ -31,13 +42,39 @@ class DashboardView extends StatelessWidget {
 
     final patientProvider = context.watch<PatientProvider>();
     final sessionProvider = context.watch<SessionProvider>();
+    final debtProvider = context.watch<DebtProvider>();
 
     final patientsMap = {for (var p in patientProvider.patients) p.id: p};
     final todaySessions = sessionProvider.todaySessions;
-    final income = sessionProvider.monthlyIncome;
 
-    return Scaffold(
-      appBar: AppBar(
+    final now = DateTime.now();
+    final income = incomeForMonth(
+      sessions: sessionProvider.sessions,
+      debtPayments: debtProvider.debtPayments,
+      year: now.year,
+      month: now.month,
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('اضغط مرة أخرى للخروج'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('عيادة العلاج الطبيعي'),
         actions: [
           IconButton(
@@ -57,11 +94,22 @@ class DashboardView extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           children: [
             // ── Welcome Banner ───────────────────────────────────────────────
-            Text(
-              'مرحباً بك دكتور معتز، 👋',
-              style: textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
+            StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.userChanges(),
+              initialData: FirebaseAuth.instance.currentUser,
+              builder: (context, userSnapshot) {
+                final user = userSnapshot.data;
+                final name = user?.displayName?.trim();
+                final greeting = (name != null && name.isNotEmpty)
+                    ? 'مرحباً بك دكتور $name'
+                    : 'مرحباً بك دكتور';
+                return Text(
+                  greeting,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 4),
             Text(
@@ -96,22 +144,37 @@ class DashboardView extends StatelessWidget {
                   context,
                   'المرضى',
                   Icons.people,
-                  theme.colorScheme.primary,
                   AppRoutes.patients,
                 ),
                 _buildGridItem(
                   context,
                   'الجلسات',
                   Icons.event_note,
-                  theme.colorScheme.secondary,
                   AppRoutes.sessions,
                 ),
                 _buildGridItem(
                   context,
                   'التقارير',
                   Icons.analytics,
-                  Colors.purple,
                   AppRoutes.reports,
+                ),
+                _buildGridItem(
+                  context,
+                  'الجدول',
+                  Icons.calendar_month,
+                  AppRoutes.schedule,
+                ),
+                _buildGridItem(
+                  context,
+                  'المديونيات',
+                  Icons.account_balance_wallet,
+                  AppRoutes.debts,
+                ),
+                _buildGridItem(
+                  context,
+                  'خريطة اليوم',
+                  Icons.route,
+                  AppRoutes.todayRoute,
                 ),
               ],
             ),
@@ -152,21 +215,21 @@ class DashboardView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.event_available,
-                      color: theme.colorScheme.secondary.withOpacity(0.5),
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                       size: 40,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'لا يوجد جلسات مجدولة لليوم',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -187,6 +250,7 @@ class DashboardView extends StatelessWidget {
                   return TodaySessionCard(
                     session: session,
                     patientName: patientName,
+                    patientPhone: patientPhone.isNotEmpty ? patientPhone : null,
                     onCallPressed: () {
                       if (patientPhone.isNotEmpty) {
                         _makeCall(context, patientPhone);
@@ -202,6 +266,7 @@ class DashboardView extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -209,7 +274,6 @@ class DashboardView extends StatelessWidget {
     BuildContext context,
     String title,
     IconData icon,
-    Color color,
     String route,
   ) {
     final theme = Theme.of(context);
@@ -219,7 +283,7 @@ class DashboardView extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: InkWell(
         onTap: () {
@@ -231,11 +295,7 @@ class DashboardView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: color.withOpacity(0.12),
-                child: Icon(icon, color: color, size: 22),
-              ),
+              Icon(icon, color: theme.colorScheme.primary, size: 24),
               const SizedBox(height: 8),
               Text(
                 title,

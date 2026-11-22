@@ -3,18 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:physical_therapy/widgets/custom_button.dart';
 import 'package:physical_therapy/widgets/custom_textfield.dart';
 
-/// Single-doctor login screen.
+enum AuthMode { login, createAccount }
+
+/// Login and Account Creation screen.
 ///
-/// Visual language matches the rest of the app exactly:
-/// - Cairo font (inherited via ThemeData)
-/// - Rounded-12 input fields (inherited via InputDecorationTheme)
-/// - Full-width ElevatedButton (via CustomButton which reads elevatedButtonTheme)
-/// - Colors exclusively from Theme.of(context).colorScheme — no hex values
-/// - RTL inherited automatically from the Directionality widget in app.dart
-/// - Light/dark theme inherited automatically from the MaterialApp ThemeMode
+/// Supports two modes on the same screen:
+/// - Login mode
+/// - Create account mode (with confirm password field)
 ///
-/// Navigation on success is handled reactively by [AuthGate] — this screen
-/// never calls Navigator itself.
+/// Styling strictly adheres to the app's existing theme and visual language.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -26,38 +23,88 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
+  AuthMode _mode = AuthMode.login;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _errorMessage;
+  String? _infoMessage;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  void _switchMode(AuthMode newMode) {
+    setState(() {
+      _mode = newMode;
+      _errorMessage = null;
+      _infoMessage = null;
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+    });
+  }
+
+  Future<void> _onTappedAlreadyHaveAccount() async {
+    final email = _emailController.text.trim();
+    _switchMode(AuthMode.login);
+
+    if (email.isNotEmpty && email.contains('@')) {
+      try {
+        final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+        if (methods.isNotEmpty && mounted) {
+          setState(() {
+            _infoMessage = 'هذا البريد مسجل بالفعل، أدخل كلمة المرور.';
+          });
+        }
+      } catch (_) {
+        // Firebase email-enumeration protection can make this throw or return empty.
+        // Show NOTHING definitive per spec.
+      }
+    }
+  }
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _infoMessage = null;
     });
 
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      // AuthGate's StreamBuilder will react to authStateChanges and show
-      // the home screen automatically — no manual navigation needed here.
+      if (_mode == AuthMode.login) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorMessage = _localizeAuthError(e.code);
-      });
-    } catch (e) {
+      if (_mode == AuthMode.createAccount && e.code == 'email-already-in-use') {
+        setState(() {
+          _mode = AuthMode.login;
+          _errorMessage = 'هذا البريد مسجل بالفعل. سجّل الدخول بدلاً من ذلك.';
+        });
+      } else {
+        setState(() {
+          _errorMessage = _localizeAuthError(e.code);
+        });
+      }
+    } catch (_) {
       setState(() {
         _errorMessage = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
       });
@@ -70,7 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Maps Firebase Auth error codes to human-readable Arabic messages.
   String _localizeAuthError(String code) {
     switch (code) {
       case 'user-not-found':
@@ -78,16 +124,20 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'wrong-password':
       case 'invalid-credential':
         return 'كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.';
+      case 'weak-password':
+        return 'كلمة المرور ضعيفة جداً. يرجى إدخال 6 أحرف على الأقل.';
       case 'invalid-email':
         return 'صيغة البريد الإلكتروني غير صحيحة.';
       case 'user-disabled':
         return 'تم تعطيل هذا الحساب. تواصل مع المسؤول.';
+      case 'operation-not-allowed':
+        return 'تسجيل الدخول بالبريد الإلكتروني غير مفعّل حالياً.';
       case 'too-many-requests':
         return 'تم تجاوز عدد المحاولات المسموح بها. يرجى الانتظار قليلاً.';
       case 'network-request-failed':
         return 'خطأ في الاتصال بالإنترنت. تحقق من اتصالك.';
       default:
-        return 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.';
+        return 'فشلت العملية. يرجى المحاولة مرة أخرى.';
     }
   }
 
@@ -95,6 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final isCreateMode = _mode == AuthMode.createAccount;
 
     return Scaffold(
       body: SafeArea(
@@ -107,10 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Logo / icon ──────────────────────────────────────────────
+                  // ── Logo / icon ──────────────────────────────────────────
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.12),
+                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
                     child: Icon(
                       Icons.local_hospital_rounded,
                       size: 44,
@@ -119,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Title ────────────────────────────────────────────────────
+                  // ── Title ────────────────────────────────────────────────
                   Text(
                     'عيادة العلاج الطبيعي',
                     textAlign: TextAlign.center,
@@ -129,15 +180,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'تسجيل الدخول',
+                    isCreateMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول',
                     textAlign: TextAlign.center,
                     style: textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 36),
 
-                  // ── Email field ──────────────────────────────────────────────
+                  // ── Email field ──────────────────────────────────────────
                   CustomTextField(
                     controller: _emailController,
                     label: 'البريد الإلكتروني',
@@ -148,15 +199,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.trim().isEmpty) {
                         return 'يرجى إدخال البريد الإلكتروني';
                       }
+                      if (!value.contains('@')) {
+                        return 'صيغة البريد الإلكتروني غير صحيحة';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Password field ───────────────────────────────────────────
-                  // CustomTextField doesn't support suffixIcon/obscureText so
-                  // we use a TextFormField directly — styled by InputDecorationTheme
-                  // which is identical to what CustomTextField uses.
+                  // ── Password field ───────────────────────────────────────
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -181,36 +232,115 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.trim().isEmpty) {
                         return 'يرجى إدخال كلمة المرور';
                       }
+                      if (isCreateMode && value.trim().length < 6) {
+                        return 'يجب أن لا تقل كلمة المرور عن 6 أحرف';
+                      }
                       return null;
                     },
                     onFieldSubmitted: (_) {
-                      if (!_isLoading) _login();
+                      if (!_isLoading && !isCreateMode) _submit();
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // ── Error message ────────────────────────────────────────────
-                  if (_errorMessage != null)
+                  // ── Confirm Password field (in Create mode) ──────────────
+                  if (isCreateMode) ...[
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'تأكيد كلمة المرور',
+                        hintText: 'أعد إدخال كلمة المرور',
+                        prefixIcon: const Icon(Icons.lock_reset_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'يرجى تأكيد كلمة المرور';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'كلمتا المرور غير متطابقتين';
+                        }
+                        return null;
+                      },
+                      onFieldSubmitted: (_) {
+                        if (!_isLoading) _submit();
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Info message ─────────────────────────────────────────
+                  if (_infoMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: Text(
-                        _errorMessage!,
+                        _infoMessage!,
                         textAlign: TextAlign.center,
                         style: textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
 
+                  // ── Error message ────────────────────────────────────────
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (_errorMessage == 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.') ...[
+                            const SizedBox(height: 6),
+                            TextButton(
+                              onPressed: () => _switchMode(AuthMode.createAccount),
+                              child: const Text('إنشاء حساب بهذا البريد الآن'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
                   const SizedBox(height: 8),
 
-                  // ── Login button ─────────────────────────────────────────────
+                  // ── Main Action button ───────────────────────────────────
                   CustomButton(
-                    text: 'تسجيل الدخول',
+                    text: isCreateMode ? 'إنشاء الحساب' : 'تسجيل الدخول',
                     isLoading: _isLoading,
-                    onPressed: _login,
+                    onPressed: _submit,
                   ),
+                  const SizedBox(height: 16),
+
+                  // ── Mode Toggle Link ─────────────────────────────────────
+                  if (isCreateMode)
+                    TextButton(
+                      onPressed: _onTappedAlreadyHaveAccount,
+                      child: const Text('لديك حساب بالفعل؟ تسجيل الدخول'),
+                    )
+                  else
+                    TextButton(
+                      onPressed: () => _switchMode(AuthMode.createAccount),
+                      child: const Text('ليس لديك حساب؟ إنشاء حساب'),
+                    ),
                 ],
               ),
             ),

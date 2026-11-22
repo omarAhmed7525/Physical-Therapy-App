@@ -3,12 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // ── Session Status ─────────────────────────────────────────────────────────────
 
 /// Represents the outcome / scheduling state of a session.
-enum SessionStatus { completed, postponed, cancelled }
+enum SessionStatus { scheduled, completed, postponed, cancelled }
 
 /// Extension providing serialization helpers on [SessionStatus].
 extension SessionStatusExtension on SessionStatus {
   /// Converts enum value to the Firestore string representation.
   String toValue() => switch (this) {
+        SessionStatus.scheduled => 'scheduled',
         SessionStatus.completed => 'completed',
         SessionStatus.postponed => 'postponed',
         SessionStatus.cancelled => 'cancelled',
@@ -16,6 +17,7 @@ extension SessionStatusExtension on SessionStatus {
 
   /// Human-readable Arabic label for UI display.
   String get arabicLabel => switch (this) {
+        SessionStatus.scheduled => 'محجوزة',
         SessionStatus.completed => 'مكتملة',
         SessionStatus.postponed => 'مؤجلة',
         SessionStatus.cancelled => 'ملغاة',
@@ -25,6 +27,7 @@ extension SessionStatusExtension on SessionStatus {
 /// Parses a raw Firestore string into [SessionStatus].
 /// Defaults to [SessionStatus.postponed] on unknown values.
 SessionStatus sessionStatusFromValue(String? value) => switch (value) {
+      'scheduled' => SessionStatus.scheduled,
       'completed' => SessionStatus.completed,
       'cancelled' => SessionStatus.cancelled,
       _ => SessionStatus.postponed,
@@ -34,21 +37,20 @@ SessionStatus sessionStatusFromValue(String? value) => switch (value) {
 
 /// Immutable data model representing one therapy session.
 ///
-/// Sessions are stored as a subcollection under their patient:
-/// `patients/{patientId}/sessions/{sessionId}`
+/// In the multi-account architecture, sessions are stored per user:
+/// `users/{uid}/sessions/{sessionId}`
 ///
 /// Rules:
 /// - No business logic — only [fromMap], [toMap], and [copyWith].
 /// - [remainingAmount] is always derived: `price - paidAmount`, but stored
 ///   explicitly in Firestore to allow direct querying without client computation.
+/// - [date] is the full scheduled instant (date + time).
+/// - [durationMinutes] defaults to 60.
 class SessionModel {
   final String id;
   final String patientId;
   final DateTime date;
-
-  /// Display time string, e.g. "10:30 ص" — stored as-is from UI input.
-  final String time;
-
+  final int durationMinutes;
   final double price;
   final double paidAmount;
   final double remainingAmount;
@@ -59,7 +61,7 @@ class SessionModel {
     required this.id,
     required this.patientId,
     required this.date,
-    required this.time,
+    this.durationMinutes = 60,
     required this.price,
     required this.paidAmount,
     required this.remainingAmount,
@@ -84,14 +86,15 @@ class SessionModel {
 
   factory SessionModel.fromMap(
     Map<String, dynamic> map,
-    String docId,
-    String patientId,
-  ) {
+    String docId, [
+    String? fallbackPatientId,
+  ]) {
+    final patientId = (map['patientId'] as String?) ?? fallbackPatientId ?? '';
     return SessionModel(
       id: docId,
       patientId: patientId,
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      time: map['time'] as String? ?? '',
+      durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 60,
       price: (map['price'] as num?)?.toDouble() ?? 0.0,
       paidAmount: (map['paidAmount'] as num?)?.toDouble() ?? 0.0,
       remainingAmount: (map['remainingAmount'] as num?)?.toDouble() ?? 0.0,
@@ -104,14 +107,14 @@ class SessionModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'patientId': patientId,
       'date': Timestamp.fromDate(date),
-      'time': time,
+      'durationMinutes': durationMinutes,
       'price': price,
       'paidAmount': paidAmount,
       'remainingAmount': remainingAmount,
       'status': status.toValue(),
       'notes': notes,
-      // patientId is implicit from the subcollection path — not stored as a field
     };
   }
 
@@ -121,7 +124,7 @@ class SessionModel {
     String? id,
     String? patientId,
     DateTime? date,
-    String? time,
+    int? durationMinutes,
     double? price,
     double? paidAmount,
     double? remainingAmount,
@@ -132,7 +135,7 @@ class SessionModel {
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       date: date ?? this.date,
-      time: time ?? this.time,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
       price: price ?? this.price,
       paidAmount: paidAmount ?? this.paidAmount,
       remainingAmount: remainingAmount ?? this.remainingAmount,
@@ -155,5 +158,5 @@ class SessionModel {
 
   @override
   String toString() =>
-      'SessionModel(id: $id, patientId: $patientId, date: $date, status: ${status.toValue()})';
+      'SessionModel(id: $id, patientId: $patientId, date: $date, durationMinutes: $durationMinutes, status: ${status.toValue()})';
 }

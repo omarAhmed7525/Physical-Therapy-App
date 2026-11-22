@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:physical_therapy/core/constants/app_colors.dart';
+import 'package:physical_therapy/core/services/reminder_service.dart';
+import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
@@ -7,10 +10,24 @@ import 'package:physical_therapy/widgets/custom_button.dart';
 import 'package:physical_therapy/widgets/custom_textfield.dart';
 import 'package:provider/provider.dart';
 
+/// Arguments for opening the Add Session view.
+/// Can be opened with just a [patientId] or with an [initialDateTime].
+class AddSessionArgs {
+  final String? patientId;
+  final DateTime? initialDateTime;
+
+  const AddSessionArgs({this.patientId, this.initialDateTime});
+}
+
 class AddSessionView extends StatefulWidget {
   final String? patientId;
+  final DateTime? initialDateTime;
 
-  const AddSessionView({super.key, this.patientId});
+  const AddSessionView({
+    super.key,
+    this.patientId,
+    this.initialDateTime,
+  });
 
   @override
   State<AddSessionView> createState() => _AddSessionViewState();
@@ -18,19 +35,71 @@ class AddSessionView extends StatefulWidget {
 
 class _AddSessionViewState extends State<AddSessionView> {
   final _formKey = GlobalKey<FormState>();
+
   String? _selectedPatientId;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
   final _timeController = TextEditingController();
   final _priceController = TextEditingController();
   final _paidController = TextEditingController();
   final _notesController = TextEditingController();
-  SessionStatus _selectedStatus = SessionStatus.completed;
+
+  int _selectedDurationMinutes = 60;
+  late SessionStatus _selectedStatus;
+  bool _userManuallyChangedStatus = false;
 
   @override
   void initState() {
     super.initState();
     _selectedPatientId = widget.patientId;
-    _timeController.text = DateFormat('hh:mm a').format(DateTime.now());
+
+    final initial = widget.initialDateTime ?? DateTime.now();
+    _selectedDate = DateTime(initial.year, initial.month, initial.day);
+    _selectedTime = TimeOfDay(hour: initial.hour, minute: initial.minute);
+
+    // Initial default status: scheduled if future, otherwise completed
+    final fullDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    _selectedStatus = fullDateTime.isAfter(DateTime.now())
+        ? SessionStatus.scheduled
+        : SessionStatus.completed;
+
+    _updateTimeControllerText();
+  }
+
+  void _updateTimeControllerText() {
+    final dt = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    _timeController.text = DateHelper.formatTime(dt);
+  }
+
+  void _checkAutoStatus() {
+    if (_userManuallyChangedStatus) return;
+    final fullDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    final autoStatus = fullDateTime.isAfter(DateTime.now())
+        ? SessionStatus.scheduled
+        : SessionStatus.completed;
+    if (_selectedStatus != autoStatus) {
+      setState(() {
+        _selectedStatus = autoStatus;
+      });
+    }
   }
 
   @override
@@ -52,6 +121,7 @@ class _AddSessionViewState extends State<AddSessionView> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _checkAutoStatus();
       });
     }
   }
@@ -59,14 +129,14 @@ class _AddSessionViewState extends State<AddSessionView> {
   Future<void> _selectTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(DateTime.now()),
+      initialTime: _selectedTime,
     );
     if (picked != null) {
-      if (mounted) {
-        setState(() {
-          _timeController.text = picked.format(context);
-        });
-      }
+      setState(() {
+        _selectedTime = picked;
+        _updateTimeControllerText();
+        _checkAutoStatus();
+      });
     }
   }
 
@@ -82,11 +152,19 @@ class _AddSessionViewState extends State<AddSessionView> {
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final paid = double.tryParse(_paidController.text.trim()) ?? 0.0;
 
+    final fullScheduledDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
     final sessionProvider = context.read<SessionProvider>();
-    await sessionProvider.addSession(
+    final newSessionId = await sessionProvider.addSession(
       patientId: _selectedPatientId!,
-      date: _selectedDate,
-      time: _timeController.text.trim(),
+      date: fullScheduledDateTime,
+      durationMinutes: _selectedDurationMinutes,
       price: price,
       paidAmount: paid,
       status: _selectedStatus,
@@ -97,7 +175,7 @@ class _AddSessionViewState extends State<AddSessionView> {
       if (sessionProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء إضافة الجلسة: ${sessionProvider.error}'),
+            content: Text(sessionProvider.error!),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -105,6 +183,55 @@ class _AddSessionViewState extends State<AddSessionView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تسجيل الجلسة بنجاح')),
         );
+
+        // Schedule reminder notification if status is scheduled
+        if (_selectedStatus == SessionStatus.scheduled) {
+          final patientProvider = context.read<PatientProvider>();
+          final patient = patientProvider.patients.cast<dynamic>().firstWhere(
+                (p) => p.id == _selectedPatientId,
+                orElse: () => null,
+              );
+          final pName = patient?.name ?? 'المريض';
+          final sId = newSessionId ?? fullScheduledDateTime.millisecondsSinceEpoch.toString();
+          await ReminderService().scheduleSessionReminder(
+            sessionId: sId,
+            patientName: pName,
+            sessionDate: fullScheduledDateTime,
+          );
+        }
+
+        // Check if plan state is low or finished after completed session (Workstream C4)
+        if (_selectedStatus == SessionStatus.completed) {
+          final patientProvider = context.read<PatientProvider>();
+          final patients = patientProvider.patients;
+          final matchingPatients = patients.where((p) => p.id == _selectedPatientId).toList();
+          final patient = matchingPatients.isNotEmpty ? matchingPatients.first : null;
+          if (patient != null &&
+              patient.planTotalSessions != null &&
+              patient.planStartDate != null) {
+            final remaining = PlanCalculator.calculateRemainingSessions(
+              patient: patient,
+              sessions: sessionProvider.sessions,
+            );
+            if (remaining == 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('انتهت الباقة'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+              );
+            } else if (remaining <= kPlanLowThreshold) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('قاربت الباقة على الانتهاء'),
+                  backgroundColor: isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                ),
+              );
+            }
+          }
+        }
+
         Navigator.pop(context);
       }
     }
@@ -114,200 +241,244 @@ class _AddSessionViewState extends State<AddSessionView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
-
     final patients = context.watch<PatientProvider>().patients;
-    final isLoading = context.watch<SessionProvider>().isLoading;
 
-    // Find current patient if pre-selected
     final fixedPatient = widget.patientId != null
-        ? patients.firstWhere((p) => p.id == widget.patientId, orElse: () => patients.first)
+        ? patients.cast<dynamic>().firstWhere(
+              (p) => p.id == widget.patientId,
+              orElse: () => null,
+            )
         : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تسجيل جلسة جديدة'),
+        title: const Text('إضافة جلسة جديدة'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // ── Patient Selection ────────────────────────────────────────────
-            if (fixedPatient != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.person, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'المريض المحدد:',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          fixedPatient.name,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Patient Selection ──────────────────────────────────────────
+              if (fixedPatient != null)
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'المريض المحدد:',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            fixedPatient.name,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedPatientId,
+                  decoration: const InputDecoration(
+                    labelText: 'اختر المريض *',
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                  items: patients.map((patient) {
+                    return DropdownMenuItem<String>(
+                      value: patient.id,
+                      child: Text(patient.name),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPatientId = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'يرجى اختيار مريض';
+                    }
+                    return null;
+                  },
                 ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                value: _selectedPatientId,
+              const SizedBox(height: 16),
+
+              // ── Date and Time Selection ────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: _selectDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'التاريخ *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          DateHelper.formatDate(_selectedDate),
+                          style: textTheme.bodyMedium,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _selectTime,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'الوقت *',
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        child: Text(
+                          _timeController.text,
+                          style: textTheme.bodyMedium,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Duration Dropdown ──────────────────────────────────────────
+              DropdownButtonFormField<int>(
+                initialValue: _selectedDurationMinutes,
                 decoration: const InputDecoration(
-                  labelText: 'اختر المريض *',
-                  prefixIcon: Icon(Icons.person),
+                  labelText: 'مدة الجلسة',
+                  prefixIcon: Icon(Icons.timer_outlined),
                 ),
-                items: patients.map((patient) {
-                  return DropdownMenuItem<String>(
-                    value: patient.id,
-                    child: Text(patient.name),
+                items: const [
+                  DropdownMenuItem(value: 30, child: Text('30 دقيقة')),
+                  DropdownMenuItem(value: 45, child: Text('45 دقيقة')),
+                  DropdownMenuItem(value: 60, child: Text('60 دقيقة')),
+                  DropdownMenuItem(value: 90, child: Text('90 دقيقة')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedDurationMinutes = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // ── Financial Info ─────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _priceController,
+                      label: 'سعر الجلسة *',
+                      hint: 'مثال: 200',
+                      prefixIcon: Icons.attach_money,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'يرجى إدخال السعر';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'سعر غير صالح';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _paidController,
+                      label: 'المبلغ المدفوع *',
+                      hint: 'مثال: 100',
+                      prefixIcon: Icons.payment,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'يرجى إدخال المدفوع';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'مبلغ غير صالح';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Status Selection ───────────────────────────────────────────
+              DropdownButtonFormField<SessionStatus>(
+                key: ValueKey(_selectedStatus),
+                initialValue: _selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'حالة الجلسة *',
+                  prefixIcon: Icon(Icons.info_outline),
+                ),
+                items: SessionStatus.values.map((status) {
+                  return DropdownMenuItem<SessionStatus>(
+                    value: status,
+                    child: Text(status.arabicLabel),
                   );
                 }).toList(),
                 onChanged: (value) {
-                  setState(() {
-                    _selectedPatientId = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'يرجى اختيار مريض';
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                      _userManuallyChangedStatus = true;
+                    });
                   }
-                  return null;
                 },
               ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Date & Time ──────────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: _selectDate,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'تاريخ الجلسة *',
-                        prefixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(
-                        DateFormat('yyyy/MM/dd').format(_selectedDate),
-                        style: textTheme.bodyLarge,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _timeController,
-                    label: 'وقت الجلسة *',
-                    prefixIcon: Icons.access_time,
-                    readOnly: true,
-                    onTap: _selectTime,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Price & Paid Amount ──────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _priceController,
-                    label: 'سعر الجلسة *',
-                    hint: 'مثال: 150',
-                    prefixIcon: Icons.attach_money,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال السعر';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'سعر غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _paidController,
-                    label: 'المبلغ المدفوع *',
-                    hint: 'مثال: 100',
-                    prefixIcon: Icons.payment,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال المدفوع';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'مبلغ غير صالح';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Status Selection ─────────────────────────────────────────────
-            DropdownButtonFormField<SessionStatus>(
-              value: _selectedStatus,
-              decoration: const InputDecoration(
-                labelText: 'حالة الجلسة *',
-                prefixIcon: Icon(Icons.info_outline),
+              // ── Notes ──────────────────────────────────────────────────────
+              CustomTextField(
+                controller: _notesController,
+                label: 'ملاحظات وتفاصيل الجلسة',
+                hint: 'اكتب التمارين التي تم إجراؤها أو الملاحظات الطبية...',
+                prefixIcon: Icons.description,
+                maxLines: 3,
               ),
-              items: SessionStatus.values.map((status) {
-                return DropdownMenuItem<SessionStatus>(
-                  value: status,
-                  child: Text(status.arabicLabel),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedStatus = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            // ── Notes ────────────────────────────────────────────────────────
-            CustomTextField(
-              controller: _notesController,
-              label: 'ملاحظات وتفاصيل الجلسة',
-              hint: 'اكتب التمارين التي تم إجراؤها أو الملاحظات الطبية...',
-              prefixIcon: Icons.description,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 32),
-
-            // ── Submit Button ────────────────────────────────────────────────
-            CustomButton(
-              text: 'تسجيل الجلسة',
-              isLoading: isLoading,
-              onPressed: _submit,
-            ),
-          ],
+              // ── Submit Button ──────────────────────────────────────────────
+              Consumer<SessionProvider>(
+                builder: (context, provider, _) {
+                  return CustomButton(
+                    text: 'حفظ الجلسة',
+                    icon: Icons.check,
+                    isLoading: provider.isLoading,
+                    onPressed: _submit,
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Legacy single-user data: readable only by the original owner (for migration), no client writes.
+    match /patients/{document=**} {
+      allow read: if request.auth != null && request.auth.uid == '1m9bRA51QKfQtM6W47gJLk6ttDq1';
+      allow write: if false;
+    }
+  }
+}

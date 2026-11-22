@@ -20,4 +20,15 @@ class MapsService {
       return false;
     }
   }
+
+  /// Launches Google Maps Navigation / Directions for a full route.
+  static Future<bool> openRouteDirections(Uri directionsUri) async {
+    if (await canLaunchUrl(directionsUri)) {
+      return await launchUrl(
+        directionsUri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+    return false;
+  }
 }

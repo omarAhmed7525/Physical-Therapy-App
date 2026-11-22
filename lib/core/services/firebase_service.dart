@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Central Firestore access layer.
 ///
@@ -6,11 +7,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// [FirebaseFirestore]. Repositories obtain typed [CollectionReference]s and
 /// [DocumentReference]s from here — they never instantiate Firestore directly.
 ///
-/// Usage:
-/// ```dart
-/// final patientsRef = FirebaseService.instance.patientsCollection;
-/// final sessionsRef = FirebaseService.instance.sessionsCollection('patientId');
-/// ```
+/// In the multi-account architecture:
+/// All user data is isolated per authenticated user:
+/// `users/{uid}/patients/{pid}`
+/// `users/{uid}/sessions/{sid}`
+/// `users/{uid}/commissionHistory/{id}`
+/// `users/{uid}/debtPayments/{id}`
+/// `users/{uid}/meta/migration`
 class FirebaseService {
   FirebaseService._();
 
@@ -20,38 +23,62 @@ class FirebaseService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ── Collection references ──────────────────────────────────────────────────
+  // ── Current User Helper ────────────────────────────────────────────────────
 
-  /// Top-level `patients` collection.
+  /// Current signed-in user ID. Throws [StateError] if not authenticated.
+  String get currentUid {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('Cannot access Firestore without an authenticated user.');
+    }
+    return user.uid;
+  }
+
+  /// Reference to the current user's document: `users/{uid}`.
+  DocumentReference<Map<String, dynamic>> get userDoc =>
+      _db.collection('users').doc(currentUid);
+
+  // ── Scoped Collection References (users/{uid}/...) ────────────────────────
+
+  /// Patients collection: `users/{uid}/patients`
   CollectionReference<Map<String, dynamic>> get patientsCollection =>
-      _db.collection('patients');
+      userDoc.collection('patients');
 
-  /// `sessions` subcollection under a specific patient.
-  ///
-  /// Path: `patients/{patientId}/sessions`
-  CollectionReference<Map<String, dynamic>> sessionsCollection(
-    String patientId,
-  ) =>
-      _db.collection('patients').doc(patientId).collection('sessions');
+  /// Sessions collection: `users/{uid}/sessions`
+  CollectionReference<Map<String, dynamic>> get sessionsCollection =>
+      userDoc.collection('sessions');
 
-  // ── Document references ────────────────────────────────────────────────────
+  /// Commission history collection: `users/{uid}/commissionHistory`
+  CollectionReference<Map<String, dynamic>> get commissionHistoryCollection =>
+      userDoc.collection('commissionHistory');
 
-  /// Reference to a specific patient document.
+  /// Debt payments collection: `users/{uid}/debtPayments`
+  CollectionReference<Map<String, dynamic>> get debtPaymentsCollection =>
+      userDoc.collection('debtPayments');
+
+  /// Migration metadata doc: `users/{uid}/meta/migration`
+  DocumentReference<Map<String, dynamic>> get migrationMetaDoc =>
+      userDoc.collection('meta').doc('migration');
+
+  // ── Scoped Document References ─────────────────────────────────────────────
+
+  /// Reference to a specific patient document under current user.
   DocumentReference<Map<String, dynamic>> patientDoc(String patientId) =>
-      _db.collection('patients').doc(patientId);
+      patientsCollection.doc(patientId);
 
-  /// Reference to a specific session document under a patient.
-  DocumentReference<Map<String, dynamic>> sessionDoc(
-    String patientId,
-    String sessionId,
-  ) =>
-      _db
-          .collection('patients')
-          .doc(patientId)
-          .collection('sessions')
-          .doc(sessionId);
+  /// Reference to a specific session document under current user.
+  DocumentReference<Map<String, dynamic>> sessionDoc(String sessionId) =>
+      sessionsCollection.doc(sessionId);
 
-  // ── Batch & transaction helpers ────────────────────────────────────────────
+  /// Reference to a specific commission history document under current user.
+  DocumentReference<Map<String, dynamic>> commissionHistoryDoc(String id) =>
+      commissionHistoryCollection.doc(id);
+
+  /// Reference to a specific debt payment document under current user.
+  DocumentReference<Map<String, dynamic>> debtPaymentDoc(String id) =>
+      debtPaymentsCollection.doc(id);
+
+  // ── Batch & Transaction Helpers ────────────────────────────────────────────
 
   /// Returns a new [WriteBatch] for atomic multi-document writes.
   WriteBatch get batch => _db.batch();
@@ -62,28 +89,30 @@ class FirebaseService {
   ) =>
       _db.runTransaction(transactionHandler);
 
-  // ── Query helpers ──────────────────────────────────────────────────────────
+  // ── Scoped Query Helpers (Flat queries, NO collection groups) ─────────────
 
-  /// Returns a query for all sessions of a patient filtered by [status].
-  ///
-  /// Example:
-  /// ```dart
-  /// final q = FirebaseService.instance.sessionsByStatus('p1', 'completed');
-  /// ```
+  /// Query for all sessions belonging to [patientId], ordered by date descending.
+  Query<Map<String, dynamic>> sessionsForPatient(String patientId) =>
+      sessionsCollection
+          .where('patientId', isEqualTo: patientId)
+          .orderBy('date', descending: true);
+
+  /// Query for all sessions belonging to [patientId] filtered by [status].
   Query<Map<String, dynamic>> sessionsByStatus(
     String patientId,
     String status,
   ) =>
-      sessionsCollection(patientId).where('status', isEqualTo: status);
+      sessionsCollection
+          .where('patientId', isEqualTo: patientId)
+          .where('status', isEqualTo: status);
 
-  /// Returns a query for sessions of a patient within a date range.
+  /// Query for sessions within a date range across current user's sessions.
   /// Both [from] and [to] are inclusive.
-  Query<Map<String, dynamic>> sessionsByDateRange(
-    String patientId, {
+  Query<Map<String, dynamic>> sessionsByDateRange({
     required DateTime from,
     required DateTime to,
   }) =>
-      sessionsCollection(patientId)
+      sessionsCollection
           .where(
             'date',
             isGreaterThanOrEqualTo: Timestamp.fromDate(
@@ -98,40 +127,12 @@ class FirebaseService {
           )
           .orderBy('date', descending: false);
 
-  /// Returns a query for all sessions across ALL patients within a date range.
-  /// Used by the reports feature to aggregate monthly income.
-  ///
-  /// NOTE: This uses a collection group query — Firestore requires a composite
-  /// index on `sessions` for `date` (ascending). The index will be created
-  /// automatically when you first run the query in the Firebase console.
-  Query<Map<String, dynamic>> allSessionsByDateRange({
-    required DateTime from,
-    required DateTime to,
-  }) =>
-      _db
-          .collectionGroup('sessions')
-          .where(
-            'date',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(
-              DateTime(from.year, from.month, from.day),
-            ),
-          )
-          .where(
-            'date',
-            isLessThanOrEqualTo: Timestamp.fromDate(
-              DateTime(to.year, to.month, to.day, 23, 59, 59),
-            ),
-          )
-          .orderBy('date', descending: false);
-
-  /// Returns a query for today's sessions across ALL patients.
-  /// Used by the dashboard.
+  /// Query for today's sessions across current user's sessions.
   Query<Map<String, dynamic>> todaySessionsQuery() {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-    return _db
-        .collectionGroup('sessions')
+    return sessionsCollection
         .where(
           'date',
           isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
@@ -143,11 +144,52 @@ class FirebaseService {
         .orderBy('date', descending: false);
   }
 
-  /// Returns a query for ALL sessions across ALL patients.
+  /// Query for ALL sessions for the current user, ordered by date descending.
   Query<Map<String, dynamic>> allSessionsQuery() =>
-      _db.collectionGroup('sessions').orderBy('date', descending: true);
+      sessionsCollection.orderBy('date', descending: true);
 
-  /// Returns a query for ALL commission history logs across ALL patients.
+  /// Query for ALL commission history logs for the current user, ordered by paidAt descending.
   Query<Map<String, dynamic>> commissionHistoryQuery() =>
-      _db.collectionGroup('commissionHistory').orderBy('paidAt', descending: true);
+      commissionHistoryCollection.orderBy('paidAt', descending: true);
+
+  /// Query for commission history logs for a specific patient.
+  Query<Map<String, dynamic>> commissionHistoryForPatient(String patientId) =>
+      commissionHistoryCollection
+          .where('patientId', isEqualTo: patientId)
+          .orderBy('paidAt', descending: true);
+
+  /// Query for ALL debt payments for the current user, ordered by paidAt descending.
+  Query<Map<String, dynamic>> debtPaymentsQuery() =>
+      debtPaymentsCollection.orderBy('paidAt', descending: true);
+
+  /// Query for debt payments for a specific patient.
+  Query<Map<String, dynamic>> debtPaymentsForPatient(String patientId) =>
+      debtPaymentsCollection
+          .where('patientId', isEqualTo: patientId)
+          .orderBy('paidAt', descending: true);
+
+  // ── Legacy Single-User Access (For migration only) ─────────────────────────
+
+  /// Top-level legacy patients collection: `patients`
+  CollectionReference<Map<String, dynamic>> get legacyPatientsCollection =>
+      _db.collection('patients');
+
+  /// Top-level legacy patient doc: `patients/{patientId}`
+  DocumentReference<Map<String, dynamic>> legacyPatientDoc(String patientId) =>
+      _db.collection('patients').doc(patientId);
+
+  /// Legacy sessions subcollection: `patients/{patientId}/sessions`
+  CollectionReference<Map<String, dynamic>> legacySessionsCollection(
+    String patientId,
+  ) =>
+      _db.collection('patients').doc(patientId).collection('sessions');
+
+  /// Legacy commissionHistory subcollection: `patients/{patientId}/commissionHistory`
+  CollectionReference<Map<String, dynamic>> legacyCommissionHistoryCollection(
+    String patientId,
+  ) =>
+      _db
+          .collection('patients')
+          .doc(patientId)
+          .collection('commissionHistory');
 }

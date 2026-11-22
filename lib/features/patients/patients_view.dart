@@ -111,7 +111,7 @@ class _PatientsViewState extends State<PatientsView> {
                         Icon(
                           Icons.people_outline,
                           size: 64,
-                          color: theme.colorScheme.primary.withOpacity(0.5),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -119,7 +119,7 @@ class _PatientsViewState extends State<PatientsView> {
                               ? 'لا يوجد مرضى مسجلين حالياً'
                               : 'لم يتم العثور على نتائج للبحث',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -133,7 +133,14 @@ class _PatientsViewState extends State<PatientsView> {
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final patient = filteredPatients[index];
-                    return PatientCard(patient: patient);
+                    return PatientCard(
+                      patient: patient,
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.patientDetails,
+                        arguments: patient,
+                      ),
+                    );
                   },
                 );
               },

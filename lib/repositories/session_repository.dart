@@ -6,69 +6,58 @@ class SessionRepository {
 
   /// Fetch all sessions for a specific patient.
   Future<List<SessionModel>> fetchSessionsForPatient(String patientId) async {
-    final snapshot = await _firebaseService
-        .sessionsCollection(patientId)
-        .orderBy('date', descending: true)
-        .get();
+    final snapshot = await _firebaseService.sessionsForPatient(patientId).get();
 
     return snapshot.docs.map((doc) {
       return SessionModel.fromMap(doc.data(), doc.id, patientId);
     }).toList();
   }
 
-  /// Add a new session under a patient's subcollection.
+  /// Add a new session under `users/{uid}/sessions`.
   Future<String> addSession(SessionModel session) async {
-    final docRef = await _firebaseService
-        .sessionsCollection(session.patientId)
-        .add(session.toMap());
+    final docRef = await _firebaseService.sessionsCollection.add(session.toMap());
     return docRef.id;
   }
 
-  /// Update an existing session.
+  /// Update an existing session under `users/{uid}/sessions/{id}`.
   Future<void> updateSession(SessionModel session) async {
-    await _firebaseService
-        .sessionDoc(session.patientId, session.id)
-        .update(session.toMap());
+    await _firebaseService.sessionDoc(session.id).update(session.toMap());
   }
 
   /// Delete a session.
   Future<void> deleteSession(String patientId, String sessionId) async {
-    await _firebaseService.sessionDoc(patientId, sessionId).delete();
+    await _firebaseService.sessionDoc(sessionId).delete();
   }
 
-  /// Stream of today's sessions across all patients (using Collection Group).
+  /// Stream of today's sessions for the current user.
   Stream<List<SessionModel>> getTodaySessionsStream() {
     return _firebaseService.todaySessionsQuery().snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        final pathSegments = doc.reference.path.split('/');
-        final patientId = pathSegments.length >= 2 ? pathSegments[1] : '';
-        return SessionModel.fromMap(doc.data(), doc.id, patientId);
+        return SessionModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
   }
 
-  /// Stream of ALL sessions across all patients (using Collection Group).
+  /// Stream of ALL sessions for the current user.
   Stream<List<SessionModel>> getAllSessionsStream() {
     return _firebaseService.allSessionsQuery().snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        final pathSegments = doc.reference.path.split('/');
-        final patientId = pathSegments.length >= 2 ? pathSegments[1] : '';
-        return SessionModel.fromMap(doc.data(), doc.id, patientId);
+        return SessionModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
   }
 
-  /// Fetch all sessions within a date range across all patients (for reports).
+  /// Fetch all sessions within a date range across current user's sessions.
   Future<List<SessionModel>> fetchAllSessionsByDateRange(
-      DateTime from, DateTime to) async {
+    DateTime from,
+    DateTime to,
+  ) async {
     final snapshot = await _firebaseService
-        .allSessionsByDateRange(from: from, to: to)
+        .sessionsByDateRange(from: from, to: to)
         .get();
 
     return snapshot.docs.map((doc) {
-      final pathSegments = doc.reference.path.split('/');
-      final patientId = pathSegments.length >= 2 ? pathSegments[1] : '';
-      return SessionModel.fromMap(doc.data(), doc.id, patientId);
+      return SessionModel.fromMap(doc.data(), doc.id);
     }).toList();
   }
 }

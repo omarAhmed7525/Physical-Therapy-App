@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:physical_therapy/app/routes.dart';
-import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/core/constants/app_colors.dart';
+import 'package:physical_therapy/core/utils/date_helper.dart';
+import 'package:physical_therapy/core/utils/phone_utils.dart';
+import 'package:physical_therapy/models/session_model.dart';
 
 class SessionCard extends StatelessWidget {
   final SessionModel session;
   final String? patientName; // Optional, if we display it in a general sessions list
+  final String? patientPhone; // Optional, for WhatsApp action (C1)
 
   const SessionCard({
     super.key,
     required this.session,
     this.patientName,
+    this.patientPhone,
   });
 
   Color _getStatusColor(SessionStatus status, ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
     switch (status) {
+      case SessionStatus.scheduled:
+        return theme.colorScheme.primary;
       case SessionStatus.completed:
         return isDark ? AppColors.darkSuccess : AppColors.lightSuccess;
       case SessionStatus.postponed:
@@ -44,7 +49,7 @@ class SessionCard extends StatelessWidget {
         onTap: () {
           Navigator.pushNamed(
             context,
-            AppRoutes.editSession,
+            '/sessions/edit',
             arguments: session,
           );
         },
@@ -54,17 +59,18 @@ class SessionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header Row: Date/Time & Status badge ───────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
                       Icon(
-                        Icons.calendar_month,
-                        size: 18,
+                        Icons.calendar_today,
+                        size: 16,
                         color: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(
                         formattedDate,
                         style: textTheme.titleMedium?.copyWith(
@@ -75,95 +81,139 @@ class SessionCard extends StatelessWidget {
                       Icon(
                         Icons.access_time,
                         size: 16,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        session.time,
+                        DateHelper.formatTime(session.date),
                         style: textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: statusColor.withOpacity(0.5)),
-                    ),
-                    child: Text(
-                      session.status.arabicLabel,
-                      style: textTheme.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (patientPhone != null && patientPhone!.isNotEmpty)
+                        IconButton(
+                          icon: Icon(
+                            Icons.chat,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'إرسال واتساب',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            final formattedDate = DateFormat('yyyy/MM/dd').format(session.date);
+                            final message = 'مرحباً، تذكير بموعد جلستك يوم $formattedDate';
+                            PhoneUtils.launchWhatsApp(
+                              phone: patientPhone!,
+                              message: message,
+                            );
+                          },
+                        ),
+                      if (patientPhone != null && patientPhone!.isNotEmpty)
+                        const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          session.status.arabicLabel,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-              if (patientName != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'المريض: $patientName',
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(height: 12),
+
+              // ── Patient Name (if available) ────────────────────────────────
+              if (patientName != null && patientName!.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      size: 16,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      patientName!,
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
               ],
+
+              const Divider(height: 1),
               const SizedBox(height: 12),
-              Divider(color: theme.dividerColor.withOpacity(0.3)),
-              const SizedBox(height: 12),
+
+              // ── Financials Row ─────────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildPaymentInfo(
+                  _buildFinancialItem(
                     context,
-                    'السعر الإجمالي',
+                    'السعر',
                     '${session.price.toStringAsFixed(0)} ج.م',
                     theme.colorScheme.onSurface,
                   ),
-                  _buildPaymentInfo(
+                  _buildFinancialItem(
                     context,
                     'المدفوع',
                     '${session.paidAmount.toStringAsFixed(0)} ج.م',
                     isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                   ),
-                  _buildPaymentInfo(
+                  _buildFinancialItem(
                     context,
                     'المتبقي',
                     '${session.remainingAmount.toStringAsFixed(0)} ج.م',
                     remainingColor,
-                    isBold: session.remainingAmount > 0,
                   ),
                 ],
               ),
+
+              // ── Notes Preview (if any) ─────────────────────────────────────
               if (session.notes.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.dividerColor.withOpacity(0.5),
-                    ),
+                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        Icons.note,
-                        size: 16,
-                        color: theme.colorScheme.secondary,
+                        Icons.notes,
+                        size: 14,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           session.notes,
-                          style: textTheme.bodySmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
                         ),
                       ),
                     ],
@@ -177,13 +227,12 @@ class SessionCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentInfo(
+  Widget _buildFinancialItem(
     BuildContext context,
     String label,
     String value,
-    Color valueColor, {
-    bool isBold = false,
-  }) {
+    Color color,
+  ) {
     final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,15 +240,15 @@ class SessionCard extends StatelessWidget {
         Text(
           label,
           style: textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
           style: textTheme.bodyMedium?.copyWith(
-            color: valueColor,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            fontWeight: FontWeight.bold,
+            color: color,
           ),
         ),
       ],

@@ -7,7 +7,7 @@ import 'package:physical_therapy/core/constants/app_colors.dart';
 abstract class DarkTheme {
   static ThemeData build() {
     final base = ThemeData.dark(useMaterial3: true);
-    final cairoText = GoogleFonts.cairoTextTheme(base.textTheme).apply(
+    final cairoText = GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme).apply(
       bodyColor: AppColors.darkTextPrimary,
       displayColor: AppColors.darkTextPrimary,
     );
@@ -30,7 +30,7 @@ abstract class DarkTheme {
 
       // ── Typography ────────────────────────────────────────────────────────
       textTheme: cairoText,
-      primaryTextTheme: GoogleFonts.cairoTextTheme(base.primaryTextTheme),
+      primaryTextTheme: GoogleFonts.ibmPlexSansArabicTextTheme(base.primaryTextTheme),
 
       // ── AppBar ────────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
@@ -40,7 +40,7 @@ abstract class DarkTheme {
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: AppColors.darkTextPrimary,
@@ -84,9 +84,9 @@ abstract class DarkTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.darkError, width: 2),
         ),
-        labelStyle: GoogleFonts.cairo(color: AppColors.darkTextSecondary),
-        hintStyle: GoogleFonts.cairo(color: AppColors.darkTextSecondary),
-        errorStyle: GoogleFonts.cairo(color: AppColors.darkError, fontSize: 12),
+        labelStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.darkTextSecondary),
+        hintStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.darkTextSecondary),
+        errorStyle: GoogleFonts.ibmPlexSansArabic(color: AppColors.darkError, fontSize: 12),
       ),
 
       // ── Elevated button ───────────────────────────────────────────────────
@@ -97,7 +97,7 @@ abstract class DarkTheme {
           elevation: 0,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -105,7 +105,7 @@ abstract class DarkTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.darkPrimary,
-          textStyle: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -116,7 +116,7 @@ abstract class DarkTheme {
           side: const BorderSide(color: AppColors.darkPrimary),
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -133,8 +133,8 @@ abstract class DarkTheme {
         backgroundColor: AppColors.darkCard,
         selectedItemColor: AppColors.darkPrimary,
         unselectedItemColor: AppColors.darkTextSecondary,
-        selectedLabelStyle: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.cairo(fontSize: 12),
+        selectedLabelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 12),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
@@ -142,7 +142,7 @@ abstract class DarkTheme {
       // ── Chip ──────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.darkBackground,
-        labelStyle: GoogleFonts.cairo(fontSize: 13, color: AppColors.darkTextPrimary),
+        labelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 13, color: AppColors.darkTextPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         side: const BorderSide(color: Color(0xFF334155)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -160,12 +160,12 @@ abstract class DarkTheme {
         backgroundColor: AppColors.darkCard,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.darkTextPrimary,
         ),
-        contentTextStyle: GoogleFonts.cairo(
+        contentTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 14,
           color: AppColors.darkTextSecondary,
         ),
@@ -174,7 +174,7 @@ abstract class DarkTheme {
       // ── SnackBar ──────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.darkCard,
-        contentTextStyle: GoogleFonts.cairo(
+        contentTextStyle: GoogleFonts.ibmPlexSansArabic(
           color: AppColors.darkTextPrimary,
           fontSize: 14,
         ),
@@ -186,12 +186,12 @@ abstract class DarkTheme {
       listTileTheme: ListTileThemeData(
         iconColor: AppColors.darkTextSecondary,
         tileColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: AppColors.darkTextPrimary,
         ),
-        subtitleTextStyle: GoogleFonts.cairo(
+        subtitleTextStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 13,
           color: AppColors.darkTextSecondary,
         ),

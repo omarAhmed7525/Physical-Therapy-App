@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:physical_therapy/features/sessions/widgets/session_card.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
@@ -15,6 +16,21 @@ class SessionsView extends StatefulWidget {
 
 class _SessionsViewState extends State<SessionsView> {
   SessionStatus? _statusFilter;
+  DateTimeRange? _dateRange;
+
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: _dateRange,
+    );
+    if (picked != null) {
+      setState(() {
+        _dateRange = picked;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +43,13 @@ class _SessionsViewState extends State<SessionsView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('جميع الجلسات'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.date_range),
+            tooltip: 'تصفية بالتاريخ',
+            onPressed: _selectDateRange,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -49,9 +72,23 @@ class _SessionsViewState extends State<SessionsView> {
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
+                  label: const Text('محجوزة'),
+                  selected: _statusFilter == SessionStatus.scheduled,
+                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                  checkmarkColor: theme.colorScheme.primary,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _statusFilter = SessionStatus.scheduled;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
                   label: const Text('مكتملة'),
                   selected: _statusFilter == SessionStatus.completed,
-                  selectedColor: theme.colorScheme.primary.withOpacity(0.15),
+                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
                   checkmarkColor: theme.colorScheme.primary,
                   onSelected: (selected) {
                     if (selected) {
@@ -65,7 +102,7 @@ class _SessionsViewState extends State<SessionsView> {
                 FilterChip(
                   label: const Text('مؤجلة'),
                   selected: _statusFilter == SessionStatus.postponed,
-                  selectedColor: theme.colorScheme.primary.withOpacity(0.15),
+                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
                   checkmarkColor: theme.colorScheme.primary,
                   onSelected: (selected) {
                     if (selected) {
@@ -79,7 +116,7 @@ class _SessionsViewState extends State<SessionsView> {
                 FilterChip(
                   label: const Text('ملغاة'),
                   selected: _statusFilter == SessionStatus.cancelled,
-                  selectedColor: theme.colorScheme.primary.withOpacity(0.15),
+                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
                   checkmarkColor: theme.colorScheme.primary,
                   onSelected: (selected) {
                     if (selected) {
@@ -92,6 +129,28 @@ class _SessionsViewState extends State<SessionsView> {
               ],
             ),
           ),
+
+          // ── Date Range Removable Chip (if set) ─────────────────────────────
+          if (_dateRange != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: Row(
+                children: [
+                  InputChip(
+                    avatar: const Icon(Icons.date_range, size: 16),
+                    label: Text(
+                      'من ${DateFormat('yyyy/MM/dd').format(_dateRange!.start)} إلى ${DateFormat('yyyy/MM/dd').format(_dateRange!.end)}',
+                    ),
+                    onDeleted: () {
+                      setState(() {
+                        _dateRange = null;
+                      });
+                    },
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                  ),
+                ],
+              ),
+            ),
 
           // ── Sessions List ──────────────────────────────────────────────────
           Expanded(
@@ -116,8 +175,30 @@ class _SessionsViewState extends State<SessionsView> {
                 }
 
                 final filteredSessions = sessionProvider.sessions.where((session) {
-                  if (_statusFilter == null) return true;
-                  return session.status == _statusFilter;
+                  // Status filter
+                  if (_statusFilter != null && session.status != _statusFilter) {
+                    return false;
+                  }
+                  // Date range filter: whole days inclusive
+                  if (_dateRange != null) {
+                    final startOfDay = DateTime(
+                      _dateRange!.start.year,
+                      _dateRange!.start.month,
+                      _dateRange!.start.day,
+                    );
+                    final endOfDay = DateTime(
+                      _dateRange!.end.year,
+                      _dateRange!.end.month,
+                      _dateRange!.end.day,
+                      23,
+                      59,
+                      59,
+                    );
+                    if (session.date.isBefore(startOfDay) || session.date.isAfter(endOfDay)) {
+                      return false;
+                    }
+                  }
+                  return true;
                 }).toList();
 
                 if (filteredSessions.isEmpty) {
@@ -128,13 +209,13 @@ class _SessionsViewState extends State<SessionsView> {
                         Icon(
                           Icons.event_busy,
                           size: 64,
-                          color: theme.colorScheme.primary.withOpacity(0.5),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'لا يوجد جلسات مطابقة للفحص الحالي',
                           style: textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
