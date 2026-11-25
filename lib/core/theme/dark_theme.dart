@@ -16,13 +16,13 @@ abstract class DarkTheme {
       // ── Color scheme ──────────────────────────────────────────────────────
       colorScheme: const ColorScheme.dark(
         primary: AppColors.darkPrimary,
-        onPrimary: AppColors.darkBackground,
+        onPrimary: AppColors.darkOnPrimary,
         secondary: AppColors.darkSecondary,
-        onSecondary: AppColors.darkBackground,
+        onSecondary: AppColors.darkOnPrimary,
         surface: AppColors.darkCard,
         onSurface: AppColors.darkTextPrimary,
         error: AppColors.darkError,
-        onError: AppColors.darkBackground,
+        onError: AppColors.darkOnPrimary,
       ),
 
       // ── Scaffold ──────────────────────────────────────────────────────────
@@ -55,22 +55,22 @@ abstract class DarkTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155)), // slate-700
+          side: const BorderSide(color: AppColors.darkBorder),
         ),
       ),
 
       // ── Input fields ──────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1E293B), // darkCard
+        fillColor: AppColors.darkSurfaceElevated,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -93,7 +93,7 @@ abstract class DarkTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.darkPrimary,
-          foregroundColor: AppColors.darkBackground,
+          foregroundColor: AppColors.darkOnPrimary,
           elevation: 0,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -123,7 +123,7 @@ abstract class DarkTheme {
       // ── FloatingActionButton ──────────────────────────────────────────────
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.darkPrimary,
-        foregroundColor: AppColors.darkBackground,
+        foregroundColor: AppColors.darkOnPrimary,
         elevation: 4,
         shape: CircleBorder(),
       ),
@@ -141,16 +141,16 @@ abstract class DarkTheme {
 
       // ── Chip ──────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.darkBackground,
+        backgroundColor: AppColors.darkSurfaceElevated,
         labelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 13, color: AppColors.darkTextPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: const BorderSide(color: Color(0xFF334155)),
+        side: const BorderSide(color: AppColors.darkBorder),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
 
       // ── Divider ───────────────────────────────────────────────────────────
       dividerTheme: const DividerThemeData(
-        color: Color(0xFF1E293B),
+        color: AppColors.darkBorder,
         thickness: 1,
         space: 1,
       ),
