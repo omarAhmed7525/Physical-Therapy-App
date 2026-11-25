@@ -94,6 +94,7 @@ class AuthGate extends StatelessWidget {
       initialData: FirebaseAuth.instance.currentUser,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          debugPrint('[AUTHDIAG] AuthGate.build -> branch: loading');
           return const Scaffold(
             body: Center(child: LoadingWidget()),
           );
@@ -103,13 +104,16 @@ class AuthGate extends StatelessWidget {
         if (user != null) {
           // If legacy owner, check migration status first
           if (user.uid == kLegacyOwnerUid) {
+            debugPrint('[AUTHDIAG] AuthGate.build -> branch: migration gate (uid=${user.uid})');
             return _LegacyOwnerMigrationGate(user: user);
           }
 
           // Any new / non-legacy user goes directly to authenticated tree
+          debugPrint('[AUTHDIAG] AuthGate.build -> branch: dashboard (uid=${user.uid})');
           return const DashboardView();
         }
 
+        debugPrint('[AUTHDIAG] AuthGate.build -> branch: login');
         return const LoginScreen();
       },
     );

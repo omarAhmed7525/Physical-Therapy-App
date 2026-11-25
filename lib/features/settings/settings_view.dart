@@ -302,6 +302,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   onTap: () async {
                     await ReminderService().cancelAll();
+                    debugPrint('[AUTHDIAG] settings_view: calling signOut() for uid=${FirebaseAuth.instance.currentUser?.uid ?? "null"}');
                     await FirebaseAuth.instance.signOut();
                   },
                 ),
