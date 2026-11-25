@@ -468,7 +468,7 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                           const SizedBox(height: 4),
                           if (_currentPatient.commissionCycleState == 'inProgress')
                             Text(
-                              'الدورة الحالية: ${_currentPatient.commissionSessionsCount}/3 جلسات مكتملة',
+                              'الدورة الحالية: ${_currentPatient.commissionSessionsCount}/${_currentPatient.commissionSessionsTarget} جلسات مكتملة',
                               style: textTheme.bodyMedium,
                             )
                           else if (_currentPatient.commissionCycleState == 'due')
@@ -481,7 +481,7 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                             )
                           else
                             Text(
-                              'الدورة الحالية: 0/3 جلسات مكتملة',
+                              'الدورة الحالية: 0/${_currentPatient.commissionSessionsTarget} جلسات مكتملة',
                               style: textTheme.bodyMedium,
                             ),
                         ],

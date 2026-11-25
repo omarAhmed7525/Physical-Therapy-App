@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:physical_therapy/core/utils/commission_utils.dart';
 import 'package:physical_therapy/core/utils/conflict_utils.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/core/utils/legacy_time_parser.dart';
@@ -586,6 +587,116 @@ void main() {
       expect(stops[0].stopNumber, 1);
       expect(stops[1].patient.id, 'p2');
       expect(stops[1].stopNumber, 2);
+    });
+  });
+
+  group('CommissionUtils (S5)', () {
+    test('target 3 reproduces original behavior', () {
+      // add completed: 0 -> 1 -> 2 -> 3 -> 3 (capped)
+      expect(
+        computeNextCommissionCount(
+          currentCount: 0,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        1,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 2,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        3,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        3,
+      );
+
+      // update completed <-> other
+      expect(
+        computeNextCommissionCount(
+          currentCount: 2,
+          target: 3,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.postponed,
+        ),
+        1,
+      );
+      // already due (3): does not decrement
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 3,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.cancelled,
+        ),
+        3,
+      );
+      // delete completed
+      expect(
+        computeNextCommissionCount(
+          currentCount: 1,
+          target: 3,
+          mutationType: CommissionMutationType.delete,
+          deletedStatus: SessionStatus.completed,
+        ),
+        0,
+      );
+    });
+
+    test('target 1 and target 5 work correctly', () {
+      // Target 1: 0 -> 1 (due immediately)
+      expect(
+        computeNextCommissionCount(
+          currentCount: 0,
+          target: 1,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        1,
+      );
+      // Target 1, count 1 (due): does not decrement on update
+      expect(
+        computeNextCommissionCount(
+          currentCount: 1,
+          target: 1,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.cancelled,
+        ),
+        1,
+      );
+
+      // Target 5: 3 -> 4 -> 5, and 4 -> 3 on delete
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 5,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        4,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 4,
+          target: 5,
+          mutationType: CommissionMutationType.delete,
+          deletedStatus: SessionStatus.completed,
+        ),
+        3,
+      );
     });
   });
 }

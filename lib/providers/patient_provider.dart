@@ -49,6 +49,7 @@ class PatientProvider extends ChangeNotifier {
     double? longitude,
     bool commissionEnabled = false,
     double? commissionAmount,
+    int commissionSessionsTarget = 3,
     int? planTotalSessions,
   }) async {
     _isLoading = true;
@@ -68,6 +69,7 @@ class PatientProvider extends ChangeNotifier {
         commissionEnabled: commissionEnabled,
         commissionAmount: commissionEnabled ? commissionAmount : null,
         commissionSessionsCount: 0,
+        commissionSessionsTarget: commissionSessionsTarget,
         planTotalSessions: planTotalSessions,
         planStartDate: planTotalSessions != null ? DateTime.now() : null,
       );
@@ -93,6 +95,7 @@ class PatientProvider extends ChangeNotifier {
     bool clearLocation = false,
     bool? commissionEnabled,
     double? commissionAmount,
+    int? commissionSessionsTarget,
     int? planTotalSessions,
     bool resetPlanStartDate = false,
     bool clearPlan = false,
@@ -125,6 +128,7 @@ class PatientProvider extends ChangeNotifier {
         commissionAmount: isCommEnabled ? (commissionAmount ?? patient.commissionAmount) : null,
         clearCommissionAmount: !isCommEnabled,
         commissionSessionsCount: isCommEnabled ? patient.commissionSessionsCount : 0,
+        commissionSessionsTarget: commissionSessionsTarget ?? patient.commissionSessionsTarget,
         planTotalSessions: clearPlan ? null : (planTotalSessions ?? patient.planTotalSessions),
         planStartDate: newPlanStartDate,
         clearPlan: clearPlan,

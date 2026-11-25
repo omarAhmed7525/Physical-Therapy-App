@@ -23,6 +23,7 @@ class _AddPatientViewState extends State<AddPatientView> {
   
   bool _commissionEnabled = false;
   final _commissionAmountController = TextEditingController();
+  final _commissionTargetController = TextEditingController(text: '3');
 
   bool _planEnabled = false;
   final _planTotalSessionsController = TextEditingController();
@@ -36,6 +37,7 @@ class _AddPatientViewState extends State<AddPatientView> {
     _latController.dispose();
     _lngController.dispose();
     _commissionAmountController.dispose();
+    _commissionTargetController.dispose();
     _planTotalSessionsController.dispose();
     super.dispose();
   }
@@ -76,6 +78,7 @@ class _AddPatientViewState extends State<AddPatientView> {
       longitude: lng,
       commissionEnabled: _commissionEnabled,
       commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
+      commissionSessionsTarget: _commissionEnabled ? (int.tryParse(_commissionTargetController.text.trim()) ?? 3) : 3,
       planTotalSessions: _planEnabled ? int.tryParse(_planTotalSessionsController.text.trim()) : null,
     );
 
@@ -244,24 +247,45 @@ class _AddPatientViewState extends State<AddPatientView> {
                   if (_commissionEnabled)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: CustomTextField(
-                        controller: _commissionAmountController,
-                        label: 'قيمة العمولة كل 3 جلسات',
-                        hint: 'أدخل قيمة العمولة بالجنيه',
-                        prefixIcon: Icons.attach_money,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        validator: (value) {
-                          if (_commissionEnabled) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'يرجى إدخال قيمة العمولة';
-                            }
-                            final amount = double.tryParse(value.trim());
-                            if (amount == null || amount <= 0) {
-                              return 'يرجى إدخال رقم صحيح أكبر من الصفر';
-                            }
-                          }
-                          return null;
-                        },
+                      child: Column(
+                        children: [
+                          CustomTextField(
+                            controller: _commissionAmountController,
+                            label: 'قيمة العمولة',
+                            hint: 'أدخل قيمة العمولة بالجنيه',
+                            prefixIcon: Icons.attach_money,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (value) {
+                              if (_commissionEnabled) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'يرجى إدخال قيمة العمولة';
+                                }
+                                final amount = double.tryParse(value.trim());
+                                if (amount == null || amount <= 0) {
+                                  return 'يرجى إدخال رقم صحيح أكبر من الصفر';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _commissionTargetController,
+                            label: 'عدد جلسات العمولة',
+                            hint: 'مثال: 3',
+                            prefixIcon: Icons.repeat,
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (_commissionEnabled) {
+                                final target = int.tryParse(value?.trim() ?? '');
+                                if (target == null || target < 1) {
+                                  return 'يرجى إدخال عدد جلسات صحيح (1 فأكثر)';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
                     ),
                 ],
