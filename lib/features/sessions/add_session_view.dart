@@ -8,6 +8,7 @@ import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:physical_therapy/widgets/custom_button.dart';
 import 'package:physical_therapy/widgets/custom_textfield.dart';
+import 'package:physical_therapy/widgets/duration_field.dart';
 import 'package:provider/provider.dart';
 
 /// Arguments for opening the Add Session view.
@@ -365,25 +366,11 @@ class _AddSessionViewState extends State<AddSessionView> {
               ),
               const SizedBox(height: 16),
 
-              // ── Duration Dropdown ──────────────────────────────────────────
-              DropdownButtonFormField<int>(
+              // ── Duration Field ─────────────────────────────────────────────
+              DurationField(
                 initialValue: _selectedDurationMinutes,
-                decoration: const InputDecoration(
-                  labelText: 'مدة الجلسة',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 30, child: Text('30 دقيقة')),
-                  DropdownMenuItem(value: 45, child: Text('45 دقيقة')),
-                  DropdownMenuItem(value: 60, child: Text('60 دقيقة')),
-                  DropdownMenuItem(value: 90, child: Text('90 دقيقة')),
-                ],
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedDurationMinutes = value;
-                    });
-                  }
+                  _selectedDurationMinutes = value;
                 },
               ),
               const SizedBox(height: 16),
