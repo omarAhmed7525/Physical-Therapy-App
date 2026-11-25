@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:physical_therapy/features/patients/location_picker_view.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/widgets/custom_button.dart';
 import 'package:physical_therapy/widgets/custom_textfield.dart';
@@ -18,8 +20,7 @@ class _AddPatientViewState extends State<AddPatientView> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
-  final _latController = TextEditingController();
-  final _lngController = TextEditingController();
+  LatLng? _selectedLocation;
   
   bool _commissionEnabled = false;
   final _commissionAmountController = TextEditingController();
@@ -34,8 +35,6 @@ class _AddPatientViewState extends State<AddPatientView> {
     _phoneController.dispose();
     _addressController.dispose();
     _notesController.dispose();
-    _latController.dispose();
-    _lngController.dispose();
     _commissionAmountController.dispose();
     _commissionTargetController.dispose();
     _planTotalSessionsController.dispose();
@@ -52,11 +51,11 @@ class _AddPatientViewState extends State<AddPatientView> {
 
     double? lat;
     double? lng;
-    if (_latController.text.isNotEmpty && _lngController.text.isNotEmpty) {
-      lat = double.tryParse(_latController.text.trim());
-      lng = double.tryParse(_lngController.text.trim());
+    if (_selectedLocation != null) {
+      lat = _selectedLocation!.latitude;
+      lng = _selectedLocation!.longitude;
     } else if (address.isNotEmpty) {
-      // Auto-geocode the address if lat/lng were not entered manually.
+      // Auto-geocode the address if no location was picked on the map.
       try {
         final locations = await locationFromAddress(address);
         if (locations.isNotEmpty) {
@@ -64,7 +63,7 @@ class _AddPatientViewState extends State<AddPatientView> {
           lng = locations.first.longitude;
         }
       } catch (_) {
-        // Geocoding failed silently; user can still add coordinates manually later.
+        // Geocoding failed silently; user can still pick a location later.
       }
     }
 
@@ -144,36 +143,54 @@ class _AddPatientViewState extends State<AddPatientView> {
               prefixIcon: Icons.location_city,
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _latController,
-                    label: 'خط العرض (Latitude)',
-                    hint: 'مثال: 30.0444',
-                    prefixIcon: Icons.map,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final picked = await Navigator.push<LatLng>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LocationPickerView(
+                      initialLocation: _selectedLocation,
+                      initialAddress: _addressController.text.trim(),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _lngController,
-                    label: 'خط الطول (Longitude)',
-                    hint: 'مثال: 31.2357',
-                    prefixIcon: Icons.map,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-              ],
+                );
+                if (picked != null && mounted) {
+                  setState(() => _selectedLocation = picked);
+                }
+              },
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('تحديد الموقع على الخريطة'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'اختياري: أدخل الإحداثيات لتتمكن من فتح موقع المريض على خرائط جوجل مباشرة من شاشة تفاصيل المريض.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            if (_selectedLocation != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'تم تحديد الموقع',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ],
                   ),
-            ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedLocation = null),
+                    child: const Text('إزالة الموقع'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             CustomTextField(
               controller: _notesController,
