@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:physical_therapy/features/patients/location_picker_view.dart';
 import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/widgets/custom_button.dart';
@@ -21,11 +23,11 @@ class _EditPatientViewState extends State<EditPatientView> {
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
   late final TextEditingController _notesController;
-  late final TextEditingController _latController;
-  late final TextEditingController _lngController;
+  LatLng? _selectedLocation;
 
   late bool _commissionEnabled;
   late final TextEditingController _commissionAmountController;
+  late final TextEditingController _commissionTargetController;
 
   late bool _planEnabled;
   late final TextEditingController _planTotalSessionsController;
@@ -38,21 +40,20 @@ class _EditPatientViewState extends State<EditPatientView> {
     _phoneController = TextEditingController(text: widget.patient.phone);
     _addressController = TextEditingController(text: widget.patient.address);
     _notesController = TextEditingController(text: widget.patient.medicalNotes);
-    _latController = TextEditingController(
-      text: widget.patient.location != null
-          ? widget.patient.location!.latitude.toString()
-          : '',
-    );
-    _lngController = TextEditingController(
-      text: widget.patient.location != null
-          ? widget.patient.location!.longitude.toString()
-          : '',
-    );
+    _selectedLocation = widget.patient.location != null
+        ? LatLng(
+            widget.patient.location!.latitude,
+            widget.patient.location!.longitude,
+          )
+        : null;
     _commissionEnabled = widget.patient.commissionEnabled;
     _commissionAmountController = TextEditingController(
       text: widget.patient.commissionAmount != null
           ? widget.patient.commissionAmount!.toString()
           : '',
+    );
+    _commissionTargetController = TextEditingController(
+      text: widget.patient.commissionSessionsTarget.toString(),
     );
     _planEnabled = widget.patient.planTotalSessions != null;
     _planTotalSessionsController = TextEditingController(
@@ -68,9 +69,8 @@ class _EditPatientViewState extends State<EditPatientView> {
     _phoneController.dispose();
     _addressController.dispose();
     _notesController.dispose();
-    _latController.dispose();
-    _lngController.dispose();
     _commissionAmountController.dispose();
+    _commissionTargetController.dispose();
     _planTotalSessionsController.dispose();
     super.dispose();
   }
@@ -87,9 +87,9 @@ class _EditPatientViewState extends State<EditPatientView> {
     double? lng;
     bool clearLocation = false;
 
-    if (_latController.text.isEmpty || _lngController.text.isEmpty) {
+    if (_selectedLocation == null) {
       if (address.isNotEmpty) {
-        // Auto-geocode the address if lat/lng were not entered manually.
+        // Auto-geocode the address if no location was picked on the map.
         try {
           final locations = await locationFromAddress(address);
           if (locations.isNotEmpty) {
@@ -106,11 +106,8 @@ class _EditPatientViewState extends State<EditPatientView> {
         clearLocation = true;
       }
     } else {
-      lat = double.tryParse(_latController.text.trim());
-      lng = double.tryParse(_lngController.text.trim());
-      if (lat == null || lng == null) {
-        clearLocation = true;
-      }
+      lat = _selectedLocation!.latitude;
+      lng = _selectedLocation!.longitude;
     }
 
     final provider = context.read<PatientProvider>();
@@ -125,6 +122,7 @@ class _EditPatientViewState extends State<EditPatientView> {
       clearLocation: clearLocation,
       commissionEnabled: _commissionEnabled,
       commissionAmount: _commissionEnabled ? double.tryParse(_commissionAmountController.text.trim()) : null,
+      commissionSessionsTarget: _commissionEnabled ? (int.tryParse(_commissionTargetController.text.trim()) ?? widget.patient.commissionSessionsTarget) : null,
       planTotalSessions: _planEnabled ? int.tryParse(_planTotalSessionsController.text.trim()) : null,
       resetPlanStartDate: _resetPlanStartDate,
       clearPlan: !_planEnabled,
@@ -144,6 +142,7 @@ class _EditPatientViewState extends State<EditPatientView> {
             content: Text('تم تعديل بيانات المريض بنجاح'),
           ),
         );
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }
@@ -191,36 +190,54 @@ class _EditPatientViewState extends State<EditPatientView> {
               prefixIcon: Icons.location_city,
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _latController,
-                    label: 'خط العرض (Latitude)',
-                    hint: 'مثال: 30.0444',
-                    prefixIcon: Icons.map,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final picked = await Navigator.push<LatLng>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LocationPickerView(
+                      initialLocation: _selectedLocation,
+                      initialAddress: _addressController.text.trim(),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _lngController,
-                    label: 'خط الطول (Longitude)',
-                    hint: 'مثال: 31.2357',
-                    prefixIcon: Icons.map,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-              ],
+                );
+                if (picked != null && mounted) {
+                  setState(() => _selectedLocation = picked);
+                }
+              },
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('تحديد الموقع على الخريطة'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'امسح القيمتين أعلاه إذا كنت تريد إلغاء الموقع الجغرافي للمريض.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            if (_selectedLocation != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'تم تحديد الموقع',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ],
                   ),
-            ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedLocation = null),
+                    child: const Text('إزالة الموقع'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             CustomTextField(
               controller: _notesController,
@@ -305,24 +322,45 @@ class _EditPatientViewState extends State<EditPatientView> {
                   if (_commissionEnabled)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: CustomTextField(
-                        controller: _commissionAmountController,
-                        label: 'قيمة العمولة كل 3 جلسات',
-                        hint: 'أدخل قيمة العمولة بالجنيه',
-                        prefixIcon: Icons.attach_money,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        validator: (value) {
-                          if (_commissionEnabled) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'يرجى إدخال قيمة العمولة';
-                            }
-                            final amount = double.tryParse(value.trim());
-                            if (amount == null || amount <= 0) {
-                              return 'يرجى إدخال رقم صحيح أكبر من الصفر';
-                            }
-                          }
-                          return null;
-                        },
+                      child: Column(
+                        children: [
+                          CustomTextField(
+                            controller: _commissionAmountController,
+                            label: 'قيمة العمولة',
+                            hint: 'أدخل قيمة العمولة بالجنيه',
+                            prefixIcon: Icons.attach_money,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (value) {
+                              if (_commissionEnabled) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'يرجى إدخال قيمة العمولة';
+                                }
+                                final amount = double.tryParse(value.trim());
+                                if (amount == null || amount <= 0) {
+                                  return 'يرجى إدخال رقم صحيح أكبر من الصفر';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _commissionTargetController,
+                            label: 'عدد جلسات العمولة',
+                            hint: 'مثال: 3',
+                            prefixIcon: Icons.repeat,
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (_commissionEnabled) {
+                                final target = int.tryParse(value?.trim() ?? '');
+                                if (target == null || target < 1) {
+                                  return 'يرجى إدخال عدد جلسات صحيح (1 فأكثر)';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
                     ),
                 ],

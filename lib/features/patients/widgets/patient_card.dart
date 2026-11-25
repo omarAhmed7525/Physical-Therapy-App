@@ -3,6 +3,7 @@ import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class PatientCard extends StatelessWidget {
@@ -27,13 +28,10 @@ class PatientCard extends StatelessWidget {
       sessions: sessions,
     );
 
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+    return GradientCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -62,6 +60,37 @@ class PatientCard extends StatelessWidget {
                               color: patient.commissionCycleState == 'due'
                                   ? (isDark ? AppColors.darkError : AppColors.lightError)
                                   : (isDark ? AppColors.darkWarning : AppColors.lightWarning),
+                            ),
+                          ),
+                        ],
+                        if (patient.treatmentEnded) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'منتهي',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -189,8 +218,6 @@ class PatientCard extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
     );
   }
 }

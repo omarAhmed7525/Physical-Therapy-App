@@ -22,10 +22,15 @@ class PatientModel {
   final bool commissionEnabled;
   final double? commissionAmount;
   final int commissionSessionsCount;
+  final int commissionSessionsTarget;
 
   // ── Treatment Plan / Package (Workstream C4) ──────────────────────────────
   final int? planTotalSessions;
   final DateTime? planStartDate;
+
+  // ── Treatment Status (S6) ─────────────────────────────────────────────────
+  final bool treatmentEnded;
+  final DateTime? treatmentEndedAt;
 
   const PatientModel({
     required this.id,
@@ -38,18 +43,21 @@ class PatientModel {
     this.commissionEnabled = false,
     this.commissionAmount,
     this.commissionSessionsCount = 0,
+    this.commissionSessionsTarget = 3,
     this.planTotalSessions,
     this.planStartDate,
+    this.treatmentEnded = false,
+    this.treatmentEndedAt,
   });
 
   // ── Convenience Getters ────────────────────────────────────────────────────
 
   /// 'inactive' = commission not enabled, or 0 sessions counted yet.
-  /// 'inProgress' = 1 or 2 sessions counted toward the current cycle.
-  /// 'due' = 3 sessions counted — a full cycle is complete and payment is owed.
+  /// 'inProgress' = 1..(target-1) sessions counted toward the current cycle.
+  /// 'due' = target or more sessions counted — a full cycle is complete and payment is owed.
   String get commissionCycleState {
     if (!commissionEnabled || commissionSessionsCount == 0) return 'inactive';
-    if (commissionSessionsCount >= 3) return 'due';
+    if (commissionSessionsCount >= commissionSessionsTarget) return 'due';
     return 'inProgress';
   }
 
@@ -67,8 +75,12 @@ class PatientModel {
       commissionEnabled: map['commissionEnabled'] as bool? ?? false,
       commissionAmount: (map['commissionAmount'] as num?)?.toDouble(),
       commissionSessionsCount: map['commissionSessionsCount'] as int? ?? 0,
+      commissionSessionsTarget:
+          (map['commissionSessionsTarget'] as num?)?.toInt() ?? 3,
       planTotalSessions: (map['planTotalSessions'] as num?)?.toInt(),
       planStartDate: (map['planStartDate'] as Timestamp?)?.toDate(),
+      treatmentEnded: map['treatmentEnded'] as bool? ?? false,
+      treatmentEndedAt: (map['treatmentEndedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -85,9 +97,14 @@ class PatientModel {
       'commissionEnabled': commissionEnabled,
       'commissionAmount': commissionAmount,
       'commissionSessionsCount': commissionSessionsCount,
+      'commissionSessionsTarget': commissionSessionsTarget,
       'planTotalSessions': planTotalSessions,
       'planStartDate':
           planStartDate != null ? Timestamp.fromDate(planStartDate!) : null,
+      'treatmentEnded': treatmentEnded,
+      'treatmentEndedAt': treatmentEndedAt != null
+          ? Timestamp.fromDate(treatmentEndedAt!)
+          : null,
     };
   }
 
@@ -107,10 +124,14 @@ class PatientModel {
     bool? commissionEnabled,
     double? commissionAmount,
     int? commissionSessionsCount,
+    int? commissionSessionsTarget,
     bool clearCommissionAmount = false,
     int? planTotalSessions,
     DateTime? planStartDate,
     bool clearPlan = false,
+    bool? treatmentEnded,
+    DateTime? treatmentEndedAt,
+    bool clearTreatmentEndedAt = false,
   }) {
     return PatientModel(
       id: id ?? this.id,
@@ -126,10 +147,16 @@ class PatientModel {
           : (commissionAmount ?? this.commissionAmount),
       commissionSessionsCount:
           commissionSessionsCount ?? this.commissionSessionsCount,
+      commissionSessionsTarget:
+          commissionSessionsTarget ?? this.commissionSessionsTarget,
       planTotalSessions:
           clearPlan ? null : (planTotalSessions ?? this.planTotalSessions),
       planStartDate:
           clearPlan ? null : (planStartDate ?? this.planStartDate),
+      treatmentEnded: treatmentEnded ?? this.treatmentEnded,
+      treatmentEndedAt: clearTreatmentEndedAt
+          ? null
+          : (treatmentEndedAt ?? this.treatmentEndedAt),
     );
   }
 

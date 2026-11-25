@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:physical_therapy/core/utils/commission_utils.dart';
 import 'package:physical_therapy/core/utils/conflict_utils.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/core/utils/legacy_time_parser.dart';
 import 'package:physical_therapy/core/utils/maps_route_builder.dart';
+import 'package:physical_therapy/core/utils/maps_url_parser.dart';
 import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/debt_payment_model.dart';
@@ -253,6 +255,111 @@ void main() {
       );
       expect(incomeJune, 225.0);
     });
+
+    test('overpayment on a session offsets older debt (S3)', () {
+      // [price 200 paid 100, price 200 paid 300] -> 0
+      final sSet1 = [
+        SessionModel(
+          id: 'a1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 200,
+          paidAmount: 100,
+          remainingAmount: 100,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+        SessionModel(
+          id: 'a2',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 2),
+          price: 200,
+          paidAmount: 300,
+          remainingAmount: 0, // clamped in Firestore
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet1,
+          debtPayments: [],
+        ),
+        0.0,
+      );
+
+      // [300/100, 200/300] -> 100
+      final sSet2 = [
+        SessionModel(
+          id: 'b1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 300,
+          paidAmount: 100,
+          remainingAmount: 200,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+        SessionModel(
+          id: 'b2',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 2),
+          price: 200,
+          paidAmount: 300,
+          remainingAmount: 0,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet2,
+          debtPayments: [],
+        ),
+        100.0,
+      );
+
+      // [200/100] -> 100
+      final sSet3 = [
+        SessionModel(
+          id: 'c1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 200,
+          paidAmount: 100,
+          remainingAmount: 100,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet3,
+          debtPayments: [],
+        ),
+        100.0,
+      );
+
+      // [200/100] with debt payment of 100 -> 0
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet3,
+          debtPayments: [
+            DebtPaymentModel(
+              id: 'dp1',
+              patientId: 'p1',
+              amount: 100,
+              paidAt: DateTime(2026, 6, 5),
+            ),
+          ],
+        ),
+        0.0,
+      );
+    });
   });
 
   group('PlanCalculator (Threshold = 1)', () {
@@ -481,6 +588,162 @@ void main() {
       expect(stops[0].stopNumber, 1);
       expect(stops[1].patient.id, 'p2');
       expect(stops[1].stopNumber, 2);
+    });
+  });
+
+  group('CommissionUtils (S5)', () {
+    test('target 3 reproduces original behavior', () {
+      // add completed: 0 -> 1 -> 2 -> 3 -> 3 (capped)
+      expect(
+        computeNextCommissionCount(
+          currentCount: 0,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        1,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 2,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        3,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 3,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        3,
+      );
+
+      // update completed <-> other
+      expect(
+        computeNextCommissionCount(
+          currentCount: 2,
+          target: 3,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.postponed,
+        ),
+        1,
+      );
+      // already due (3): does not decrement
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 3,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.cancelled,
+        ),
+        3,
+      );
+      // delete completed
+      expect(
+        computeNextCommissionCount(
+          currentCount: 1,
+          target: 3,
+          mutationType: CommissionMutationType.delete,
+          deletedStatus: SessionStatus.completed,
+        ),
+        0,
+      );
+    });
+
+    test('target 1 and target 5 work correctly', () {
+      // Target 1: 0 -> 1 (due immediately)
+      expect(
+        computeNextCommissionCount(
+          currentCount: 0,
+          target: 1,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        1,
+      );
+      // Target 1, count 1 (due): does not decrement on update
+      expect(
+        computeNextCommissionCount(
+          currentCount: 1,
+          target: 1,
+          mutationType: CommissionMutationType.update,
+          oldStatus: SessionStatus.completed,
+          newStatus: SessionStatus.cancelled,
+        ),
+        1,
+      );
+
+      // Target 5: 3 -> 4 -> 5, and 4 -> 3 on delete
+      expect(
+        computeNextCommissionCount(
+          currentCount: 3,
+          target: 5,
+          mutationType: CommissionMutationType.add,
+          newStatus: SessionStatus.completed,
+        ),
+        4,
+      );
+      expect(
+        computeNextCommissionCount(
+          currentCount: 4,
+          target: 5,
+          mutationType: CommissionMutationType.delete,
+          deletedStatus: SessionStatus.completed,
+        ),
+        3,
+      );
+    });
+  });
+
+  group('MapsUrlParser (S7b)', () {
+    test('parses @lat,lng format', () {
+      final loc = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/place/Cairo/@30.0444,31.2357,15z',
+      );
+      expect(loc?.latitude, closeTo(30.0444, 0.0001));
+      expect(loc?.longitude, closeTo(31.2357, 0.0001));
+    });
+
+    test('parses q=, ll=, and query= parameters', () {
+      final q = parseLatLngFromMapsUrl('https://maps.google.com/?q=30.05,31.24');
+      expect(q?.latitude, closeTo(30.05, 0.0001));
+      expect(q?.longitude, closeTo(31.24, 0.0001));
+
+      final ll = parseLatLngFromMapsUrl('https://maps.google.com/?ll=29.98,31.12');
+      expect(ll?.latitude, closeTo(29.98, 0.0001));
+      expect(ll?.longitude, closeTo(31.12, 0.0001));
+
+      final query = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/search/?api=1&query=30.1,31.2',
+      );
+      expect(query?.latitude, closeTo(30.1, 0.0001));
+      expect(query?.longitude, closeTo(31.2, 0.0001));
+    });
+
+    test('parses !3dLAT!4dLNG format', () {
+      final loc = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/place/foo/data=!3m1!4b1!4m5!3m4!1s0x0:0x0!8m2!3d30.0626!4d31.2497',
+      );
+      expect(loc?.latitude, closeTo(30.0626, 0.0001));
+      expect(loc?.longitude, closeTo(31.2497, 0.0001));
+    });
+
+    test('parses plain lat, lng string', () {
+      final loc = parseLatLngFromMapsUrl('30.0444, 31.2357');
+      expect(loc?.latitude, closeTo(30.0444, 0.0001));
+      expect(loc?.longitude, closeTo(31.2357, 0.0001));
+    });
+
+    test('returns null for invalid inputs', () {
+      expect(parseLatLngFromMapsUrl(''), isNull);
+      expect(parseLatLngFromMapsUrl('not a url'), isNull);
+      expect(parseLatLngFromMapsUrl('95.0, 31.0'), isNull);
     });
   });
 }

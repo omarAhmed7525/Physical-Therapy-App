@@ -4,6 +4,7 @@ import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/models/session_model.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 
 class SessionCard extends StatelessWidget {
   final SessionModel session;
@@ -44,19 +45,16 @@ class SessionCard extends StatelessWidget {
 
     final formattedDate = DateFormat('yyyy/MM/dd').format(session.date);
 
-    return Card(
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/sessions/edit',
-            arguments: session,
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+    return GradientCard(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/sessions/edit',
+          arguments: session,
+        );
+      },
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header Row: Date/Time & Status badge ───────────────────────
@@ -222,8 +220,6 @@ class SessionCard extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
     );
   }
 

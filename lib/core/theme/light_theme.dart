@@ -16,13 +16,13 @@ abstract class LightTheme {
       // ── Color scheme ──────────────────────────────────────────────────────
       colorScheme: const ColorScheme.light(
         primary: AppColors.lightPrimary,
-        onPrimary: Colors.white,
+        onPrimary: AppColors.lightOnPrimary,
         secondary: AppColors.lightSecondary,
-        onSecondary: Colors.white,
+        onSecondary: AppColors.lightTextPrimary,
         surface: AppColors.lightCard,
         onSurface: AppColors.lightTextPrimary,
         error: AppColors.lightError,
-        onError: Colors.white,
+        onError: AppColors.lightOnPrimary,
       ),
 
       // ── Scaffold ──────────────────────────────────────────────────────────
@@ -55,22 +55,22 @@ abstract class LightTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.grey.shade200),
+          side: const BorderSide(color: AppColors.lightBorder),
         ),
       ),
 
       // ── Input fields ──────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.lightBackground,
+        fillColor: AppColors.lightSurfaceAlt,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: const BorderSide(color: AppColors.lightBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: const BorderSide(color: AppColors.lightBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -93,7 +93,7 @@ abstract class LightTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.lightPrimary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.lightOnPrimary,
           elevation: 0,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -123,7 +123,7 @@ abstract class LightTheme {
       // ── FloatingActionButton ──────────────────────────────────────────────
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.lightPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.lightOnPrimary,
         elevation: 4,
         shape: CircleBorder(),
       ),
@@ -141,19 +141,19 @@ abstract class LightTheme {
 
       // ── Chip ──────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.lightBackground,
+        backgroundColor: AppColors.lightSurfaceAlt,
         labelStyle: GoogleFonts.ibmPlexSansArabic(
           fontSize: 13,
           color: AppColors.lightTextPrimary,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: const BorderSide(color: AppColors.lightBorder),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
 
       // ── Divider ───────────────────────────────────────────────────────────
-      dividerTheme: DividerThemeData(
-        color: Colors.grey.shade200,
+      dividerTheme: const DividerThemeData(
+        color: AppColors.lightBorder,
         thickness: 1,
         space: 1,
       ),

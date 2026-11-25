@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:physical_therapy/core/utils/commission_utils.dart';
 import 'package:physical_therapy/core/utils/conflict_utils.dart';
 import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/models/session_model.dart';
@@ -253,43 +254,19 @@ class SessionProvider extends ChangeNotifier {
       if (patient == null || !patient.commissionEnabled) return;
 
       final currentCount = patient.commissionSessionsCount;
-      int newCount = currentCount;
-
-      switch (mutationType) {
-        case SessionMutationType.add:
-          // Increment if the added session is completed, and we haven't reached the limit of 3.
-          if (newStatus == SessionStatus.completed && currentCount < 3) {
-            newCount = currentCount + 1;
-          }
-          break;
-
-        case SessionMutationType.update:
-          // Status changed FROM completed TO something else (scheduled/postponed/cancelled).
-          if (oldStatus == SessionStatus.completed && newStatus != SessionStatus.completed) {
-            // Only adjust if not already due (i.e. count is 1 or 2).
-            if (currentCount == 1 || currentCount == 2) {
-              newCount = currentCount - 1;
-            }
-          }
-          // Status changed FROM something else TO completed.
-          else if (oldStatus != SessionStatus.completed && newStatus == SessionStatus.completed) {
-            // Increment up to the cap of 3.
-            if (currentCount < 3) {
-              newCount = currentCount + 1;
-            }
-          }
-          break;
-
-        case SessionMutationType.delete:
-          // Decrement if the deleted session was completed.
-          if (deletedStatus == SessionStatus.completed) {
-            // Only adjust if not already due (i.e. count is 1 or 2).
-            if (currentCount == 1 || currentCount == 2) {
-              newCount = currentCount - 1;
-            }
-          }
-          break;
-      }
+      final commMutation = switch (mutationType) {
+        SessionMutationType.add => CommissionMutationType.add,
+        SessionMutationType.update => CommissionMutationType.update,
+        SessionMutationType.delete => CommissionMutationType.delete,
+      };
+      final newCount = computeNextCommissionCount(
+        currentCount: currentCount,
+        target: patient.commissionSessionsTarget,
+        mutationType: commMutation,
+        oldStatus: oldStatus,
+        newStatus: newStatus,
+        deletedStatus: deletedStatus,
+      );
 
       // If the count changed, update the patient document.
       if (newCount != currentCount) {

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:physical_therapy/core/services/reminder_service.dart';
 import 'package:physical_therapy/core/theme/theme_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class SettingsView extends StatefulWidget {
@@ -115,7 +116,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
           ),
-          Card(
+          GradientCard(
             child: SwitchListTile(
               secondary: Icon(
                 themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
@@ -150,7 +151,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
           ),
-          Card(
+          GradientCard(
             child: SwitchListTile(
               secondary: Icon(
                 Icons.notifications_active_outlined,
@@ -185,10 +186,9 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
           ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+          GradientCard(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -219,7 +219,6 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ],
               ),
-            ),
           ),
           const SizedBox(height: 24),
 
@@ -234,7 +233,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
           ),
-          Card(
+          GradientCard(
             child: Column(
               children: [
                 if (user != null) ...[
@@ -302,6 +301,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   onTap: () async {
                     await ReminderService().cancelAll();
+                    debugPrint('[AUTHDIAG] settings_view: calling signOut() for uid=${FirebaseAuth.instance.currentUser?.uid ?? "null"}');
                     await FirebaseAuth.instance.signOut();
                   },
                 ),
