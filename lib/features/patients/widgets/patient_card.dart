@@ -65,6 +65,37 @@ class PatientCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (patient.treatmentEnded) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              'منتهي',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                         // Treatment Plan status chip (Workstream C4)
                         if (planState == PlanState.low) ...[
                           const SizedBox(width: 8),

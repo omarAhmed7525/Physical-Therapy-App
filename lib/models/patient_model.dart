@@ -28,6 +28,10 @@ class PatientModel {
   final int? planTotalSessions;
   final DateTime? planStartDate;
 
+  // ── Treatment Status (S6) ─────────────────────────────────────────────────
+  final bool treatmentEnded;
+  final DateTime? treatmentEndedAt;
+
   const PatientModel({
     required this.id,
     required this.name,
@@ -42,6 +46,8 @@ class PatientModel {
     this.commissionSessionsTarget = 3,
     this.planTotalSessions,
     this.planStartDate,
+    this.treatmentEnded = false,
+    this.treatmentEndedAt,
   });
 
   // ── Convenience Getters ────────────────────────────────────────────────────
@@ -73,6 +79,8 @@ class PatientModel {
           (map['commissionSessionsTarget'] as num?)?.toInt() ?? 3,
       planTotalSessions: (map['planTotalSessions'] as num?)?.toInt(),
       planStartDate: (map['planStartDate'] as Timestamp?)?.toDate(),
+      treatmentEnded: map['treatmentEnded'] as bool? ?? false,
+      treatmentEndedAt: (map['treatmentEndedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -93,6 +101,10 @@ class PatientModel {
       'planTotalSessions': planTotalSessions,
       'planStartDate':
           planStartDate != null ? Timestamp.fromDate(planStartDate!) : null,
+      'treatmentEnded': treatmentEnded,
+      'treatmentEndedAt': treatmentEndedAt != null
+          ? Timestamp.fromDate(treatmentEndedAt!)
+          : null,
     };
   }
 
@@ -117,6 +129,9 @@ class PatientModel {
     int? planTotalSessions,
     DateTime? planStartDate,
     bool clearPlan = false,
+    bool? treatmentEnded,
+    DateTime? treatmentEndedAt,
+    bool clearTreatmentEndedAt = false,
   }) {
     return PatientModel(
       id: id ?? this.id,
@@ -138,6 +153,10 @@ class PatientModel {
           clearPlan ? null : (planTotalSessions ?? this.planTotalSessions),
       planStartDate:
           clearPlan ? null : (planStartDate ?? this.planStartDate),
+      treatmentEnded: treatmentEnded ?? this.treatmentEnded,
+      treatmentEndedAt: clearTreatmentEndedAt
+          ? null
+          : (treatmentEndedAt ?? this.treatmentEndedAt),
     );
   }
 

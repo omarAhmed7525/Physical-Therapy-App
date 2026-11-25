@@ -306,7 +306,7 @@ class _AddSessionViewState extends State<AddSessionView> {
                     labelText: 'اختر المريض *',
                     prefixIcon: Icon(Icons.person),
                   ),
-                  items: patients.map((patient) {
+                  items: patients.where((p) => !p.treatmentEnded).map((patient) {
                     return DropdownMenuItem<String>(
                       value: patient.id,
                       child: Text(patient.name),

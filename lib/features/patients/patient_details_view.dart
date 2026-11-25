@@ -73,14 +73,86 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
     }
   }
 
-  Future<void> _deletePatient() async {
+  Future<void> _toggleTreatmentEnded() async {
+    final willEnd = !_currentPatient.treatmentEnded;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
+        title: Text(willEnd ? 'إنهاء العلاج' : 'إعادة تفعيل العلاج'),
         content: Text(
-          'هل أنت متأكد من حذف المريض "${_currentPatient.name}"؟ '
-          'سيتم حذف جميع الجلسات وسجل العمولات والمديونيات المرتبطة به نهائياً.',
+          willEnd
+              ? 'سيتم الاحتفاظ ببيانات المريض وكل جلساته'
+              : 'سيتم إعادة تفعيل ملف المريض لإضافة جلسات جديدة',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(willEnd ? 'إنهاء العلاج' : 'إعادة تفعيل'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final provider = context.read<PatientProvider>();
+      await provider.setTreatmentEnded(_currentPatient, willEnd);
+      if (mounted) {
+        if (provider.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('حدث خطأ: ${provider.error}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                willEnd ? 'تم إنهاء علاج المريض بنجاح' : 'تم إعادة تفعيل العلاج بنجاح',
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deletePatient() async {
+    final step1 = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تحذير: حذف نهائي'),
+        content: const Text(
+          'سيتم حذف المريض وكل جلساته ومدفوعاته نهائياً وسيتغير دخل الشهور السابقة',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+
+    if (step1 != true || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الحذف النهائي'),
+        content: Text(
+          'هل أنت متأكد تماماً من حذف "${_currentPatient.name}" نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
         ),
         actions: [
           TextButton(
@@ -182,11 +254,6 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                 arguments: _currentPatient,
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            tooltip: 'حذف المريض',
-            onPressed: _deletePatient,
           ),
         ],
       ),
@@ -522,16 +589,45 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.addSession,
-                      arguments: _currentPatient.id,
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('إضافة جلسة'),
+                if (!_currentPatient.treatmentEnded)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.addSession,
+                        arguments: _currentPatient.id,
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('إضافة جلسة'),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _toggleTreatmentEnded,
+                  icon: Icon(
+                    _currentPatient.treatmentEnded
+                        ? Icons.refresh
+                        : Icons.check_circle_outline,
+                  ),
+                  label: Text(
+                    _currentPatient.treatmentEnded
+                        ? 'إعادة تفعيل العلاج'
+                        : 'إنهاء العلاج',
+                  ),
+                ),
+                TextButton(
+                  onPressed: _deletePatient,
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                  child: const Text('حذف نهائي'),
                 ),
               ],
             ),

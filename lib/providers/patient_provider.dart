@@ -159,6 +159,26 @@ class PatientProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> setTreatmentEnded(PatientModel patient, bool ended) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final updated = patient.copyWith(
+        treatmentEnded: ended,
+        treatmentEndedAt: ended ? DateTime.now() : null,
+        clearTreatmentEndedAt: !ended,
+      );
+      await _patientRepository.updatePatient(updated);
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Completes the commission cycle for a patient.
   Future<void> completeCommissionCycle(PatientModel patient) async {
     if (patient.commissionAmount == null) return;

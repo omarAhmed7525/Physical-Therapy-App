@@ -12,9 +12,12 @@ class PatientsView extends StatefulWidget {
   State<PatientsView> createState() => _PatientsViewState();
 }
 
+enum _PatientFilter { all, active, ended }
+
 class _PatientsViewState extends State<PatientsView> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  _PatientFilter _filter = _PatientFilter.all;
 
   @override
   void dispose() {
@@ -66,6 +69,31 @@ class _PatientsViewState extends State<PatientsView> {
               },
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('الكل'),
+                  selected: _filter == _PatientFilter.all,
+                  onSelected: (_) => setState(() => _filter = _PatientFilter.all),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('نشط'),
+                  selected: _filter == _PatientFilter.active,
+                  onSelected: (_) => setState(() => _filter = _PatientFilter.active),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('منتهي'),
+                  selected: _filter == _PatientFilter.ended,
+                  onSelected: (_) => setState(() => _filter = _PatientFilter.ended),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: Consumer<PatientProvider>(
               builder: (context, provider, child) {
@@ -98,6 +126,12 @@ class _PatientsViewState extends State<PatientsView> {
                 }
 
                 final filteredPatients = provider.patients.where((patient) {
+                  if (_filter == _PatientFilter.active && patient.treatmentEnded) {
+                    return false;
+                  }
+                  if (_filter == _PatientFilter.ended && !patient.treatmentEnded) {
+                    return false;
+                  }
                   final query = _searchQuery.toLowerCase();
                   return patient.name.toLowerCase().contains(query) ||
                       patient.phone.contains(query);
