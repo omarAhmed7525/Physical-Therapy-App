@@ -23,7 +23,26 @@ import 'package:provider/provider.dart';
 /// - [PatientProvider] and [SessionProvider] are placed in a **second**
 ///   MultiProvider keyed by `ValueKey(user.uid)` wrapping ONLY the authenticated branch,
 ///   so providers are fully recreated whenever a different account signs in.
+class _UnfocusNavigatorObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+}
+
 class PhysioApp extends StatelessWidget {
+  static final NavigatorObserver unfocusObserver = _UnfocusNavigatorObserver();
+
   const PhysioApp({super.key});
 
   @override
@@ -47,6 +66,7 @@ class PhysioApp extends StatelessWidget {
                 theme: LightTheme.build(),
                 darkTheme: DarkTheme.build(),
                 onGenerateRoute: AppRoutes.generateRoute,
+                navigatorObservers: [unfocusObserver],
                 builder: (context, child) {
                   Widget content = Directionality(
                     textDirection: TextDirection.rtl,

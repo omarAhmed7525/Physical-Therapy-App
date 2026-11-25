@@ -144,6 +144,7 @@ class _EditPatientViewState extends State<EditPatientView> {
             content: Text('تم تعديل بيانات المريض بنجاح'),
           ),
         );
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }

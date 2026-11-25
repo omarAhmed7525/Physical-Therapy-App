@@ -190,6 +190,7 @@ class _EditSessionViewState extends State<EditSessionView> {
           }
         }
 
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }
@@ -238,6 +239,7 @@ class _EditSessionViewState extends State<EditSessionView> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم حذف الجلسة بنجاح')),
         );
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }

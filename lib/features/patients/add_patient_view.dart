@@ -93,6 +93,7 @@ class _AddPatientViewState extends State<AddPatientView> {
             content: Text('تم إضافة المريض بنجاح'),
           ),
         );
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }

@@ -232,6 +232,7 @@ class _AddSessionViewState extends State<AddSessionView> {
           }
         }
 
+        FocusManager.instance.primaryFocus?.unfocus();
         Navigator.pop(context);
       }
     }
