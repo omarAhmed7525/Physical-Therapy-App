@@ -5,6 +5,7 @@ import 'package:physical_therapy/core/utils/conflict_utils.dart';
 import 'package:physical_therapy/core/utils/debt_calculator.dart';
 import 'package:physical_therapy/core/utils/legacy_time_parser.dart';
 import 'package:physical_therapy/core/utils/maps_route_builder.dart';
+import 'package:physical_therapy/core/utils/maps_url_parser.dart';
 import 'package:physical_therapy/core/utils/phone_utils.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/debt_payment_model.dart';
@@ -697,6 +698,52 @@ void main() {
         ),
         3,
       );
+    });
+  });
+
+  group('MapsUrlParser (S7b)', () {
+    test('parses @lat,lng format', () {
+      final loc = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/place/Cairo/@30.0444,31.2357,15z',
+      );
+      expect(loc?.latitude, closeTo(30.0444, 0.0001));
+      expect(loc?.longitude, closeTo(31.2357, 0.0001));
+    });
+
+    test('parses q=, ll=, and query= parameters', () {
+      final q = parseLatLngFromMapsUrl('https://maps.google.com/?q=30.05,31.24');
+      expect(q?.latitude, closeTo(30.05, 0.0001));
+      expect(q?.longitude, closeTo(31.24, 0.0001));
+
+      final ll = parseLatLngFromMapsUrl('https://maps.google.com/?ll=29.98,31.12');
+      expect(ll?.latitude, closeTo(29.98, 0.0001));
+      expect(ll?.longitude, closeTo(31.12, 0.0001));
+
+      final query = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/search/?api=1&query=30.1,31.2',
+      );
+      expect(query?.latitude, closeTo(30.1, 0.0001));
+      expect(query?.longitude, closeTo(31.2, 0.0001));
+    });
+
+    test('parses !3dLAT!4dLNG format', () {
+      final loc = parseLatLngFromMapsUrl(
+        'https://www.google.com/maps/place/foo/data=!3m1!4b1!4m5!3m4!1s0x0:0x0!8m2!3d30.0626!4d31.2497',
+      );
+      expect(loc?.latitude, closeTo(30.0626, 0.0001));
+      expect(loc?.longitude, closeTo(31.2497, 0.0001));
+    });
+
+    test('parses plain lat, lng string', () {
+      final loc = parseLatLngFromMapsUrl('30.0444, 31.2357');
+      expect(loc?.latitude, closeTo(30.0444, 0.0001));
+      expect(loc?.longitude, closeTo(31.2357, 0.0001));
+    });
+
+    test('returns null for invalid inputs', () {
+      expect(parseLatLngFromMapsUrl(''), isNull);
+      expect(parseLatLngFromMapsUrl('not a url'), isNull);
+      expect(parseLatLngFromMapsUrl('95.0, 31.0'), isNull);
     });
   });
 }

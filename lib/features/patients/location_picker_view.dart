@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:physical_therapy/core/utils/maps_url_parser.dart';
 
 /// Interactive OpenStreetMap location picker returning a [LatLng] (or null).
 class LocationPickerView extends StatefulWidget {
@@ -25,10 +26,12 @@ class _LocationPickerViewState extends State<LocationPickerView> {
 
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _urlController = TextEditingController();
 
   late LatLng _center;
   bool _isSearching = false;
   bool _isLocating = false;
+  bool _isResolvingUrl = false;
 
   @override
   void initState() {
@@ -44,8 +47,30 @@ class _LocationPickerViewState extends State<LocationPickerView> {
   @override
   void dispose() {
     _searchController.dispose();
+    _urlController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _parseAndMoveToUrl(String rawUrl) async {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return;
+    setState(() => _isResolvingUrl = true);
+    try {
+      final loc = await resolveAndParseMapsUrl(trimmed);
+      if (loc != null && mounted) {
+        setState(() => _center = loc);
+        _mapController.move(loc, 16.0);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر قراءة الرابط')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isResolvingUrl = false);
+      }
+    }
   }
 
   Future<void> _geocodeAddress(String query, {bool silentOnError = false}) async {
@@ -174,6 +199,32 @@ class _LocationPickerViewState extends State<LocationPickerView> {
                       : const Icon(Icons.my_location),
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12.0, 0.0, 12.0, 12.0),
+            child: TextField(
+              controller: _urlController,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _parseAndMoveToUrl,
+              decoration: InputDecoration(
+                hintText: 'لصق رابط من خرائط جوجل',
+                prefixIcon: const Icon(Icons.link),
+                suffixIcon: _isResolvingUrl
+                    ? const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.check),
+                        onPressed: () =>
+                            _parseAndMoveToUrl(_urlController.text),
+                      ),
+              ),
             ),
           ),
           Expanded(
