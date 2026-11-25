@@ -8,6 +8,7 @@ import 'package:physical_therapy/features/dashboard/widgets/today_session_card.d
 import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:physical_therapy/widgets/loading_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -279,33 +280,23 @@ class _DashboardViewState extends State<DashboardView> {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, route);
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: theme.colorScheme.primary, size: 24),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+    return GradientCard(
+      onTap: () {
+        Navigator.pushNamed(context, route);
+      },
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: theme.colorScheme.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

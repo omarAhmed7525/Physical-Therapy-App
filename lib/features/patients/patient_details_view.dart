@@ -11,6 +11,7 @@ import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:physical_therapy/widgets/loading_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -260,11 +261,10 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
       body: Column(
         children: [
           // ── Patient Info Card ──────────────────────────────────────────────
-          Card(
+          GradientCard(
             margin: const EdgeInsets.all(16.0),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -388,7 +388,6 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                   ),
                 ],
               ),
-            ),
           ),
 
           // ── Outstanding Debt Row/Card (Workstream C3) ──────────────────────
@@ -437,11 +436,10 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
 
           // ── Treatment Plan / Package Card (Workstream C4) ──────────────────
           if (hasPlan)
-            Card(
+            GradientCard(
               margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -503,16 +501,14 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                     ),
                   ],
                 ),
-              ),
             ),
 
           // ── Commission Tracking Card ──────────────────────────────────────
           if (_currentPatient.commissionEnabled) ...[
-            Card(
+            GradientCard(
               margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
                   children: [
                     Icon(
                       Icons.monetization_on,
@@ -573,7 +569,6 @@ class _PatientDetailsViewState extends State<PatientDetailsView> {
                       ),
                   ],
                 ),
-              ),
             ),
           ],
 

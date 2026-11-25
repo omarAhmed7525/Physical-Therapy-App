@@ -8,6 +8,7 @@ import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class ReportsView extends StatefulWidget {
@@ -173,10 +174,9 @@ class _ReportsViewState extends State<ReportsView> {
                 const SizedBox(height: 16),
 
                 // Sessions Count Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
+                GradientCard(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
@@ -208,7 +208,6 @@ class _ReportsViewState extends State<ReportsView> {
                         ),
                       ],
                     ),
-                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -283,8 +282,7 @@ class _ReportsViewState extends State<ReportsView> {
                           (sum, e) => sum + (e['amount'] as double),
                         );
 
-                        return Card(
-                          clipBehavior: Clip.antiAlias,
+                        return GradientCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -413,52 +411,45 @@ class _ReportsViewState extends State<ReportsView> {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 24),
-                const SizedBox(width: 4),
-              ],
+    return GradientCard(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 4),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
+          ),
+          if (subText != null) ...[
             const SizedBox(height: 4),
             Text(
-              value,
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
+              subText,
+              style: textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
               ),
             ),
-            if (subText != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                subText,
-                style: textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -524,10 +515,9 @@ class _ReportsViewState extends State<ReportsView> {
     }
     final maxY = maxVal > 0 ? (maxVal * 1.25) : 100.0;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    return GradientCard(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -621,7 +611,6 @@ class _ReportsViewState extends State<ReportsView> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -655,10 +644,9 @@ class _ReportsViewState extends State<ReportsView> {
 
     final maxY = maxCompleted > 0 ? (maxCompleted + 1).toDouble() : 5.0;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    return GradientCard(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -737,7 +725,6 @@ class _ReportsViewState extends State<ReportsView> {
             ),
           ],
         ),
-      ),
     );
   }
 }

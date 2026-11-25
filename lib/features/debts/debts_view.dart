@@ -7,6 +7,7 @@ import 'package:physical_therapy/providers/debt_provider.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
 import 'package:physical_therapy/widgets/custom_textfield.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class DebtsView extends StatelessWidget {
@@ -261,19 +262,16 @@ class DebtsView extends StatelessWidget {
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final item = debtorList[index];
-                      return Card(
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.patientDetails,
-                              arguments: item.patient,
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
+                      return GradientCard(
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.patientDetails,
+                            arguments: item.patient,
+                          );
+                        },
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
                               children: [
                                 CircleAvatar(
                                   radius: 22,
@@ -324,8 +322,6 @@ class DebtsView extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ),
-                        ),
                       );
                     },
                   ),

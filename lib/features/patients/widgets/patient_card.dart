@@ -3,6 +3,7 @@ import 'package:physical_therapy/core/constants/app_colors.dart';
 import 'package:physical_therapy/core/utils/plan_calculator.dart';
 import 'package:physical_therapy/models/patient_model.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class PatientCard extends StatelessWidget {
@@ -27,13 +28,10 @@ class PatientCard extends StatelessWidget {
       sessions: sessions,
     );
 
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+    return GradientCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -220,8 +218,6 @@ class PatientCard extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
     );
   }
 }

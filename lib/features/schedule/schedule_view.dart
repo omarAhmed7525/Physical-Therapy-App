@@ -7,6 +7,7 @@ import 'package:physical_therapy/features/sessions/add_session_view.dart';
 import 'package:physical_therapy/models/session_model.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 enum ScheduleViewMode { daily, weekly }
@@ -411,20 +412,11 @@ class _ScheduleViewState extends State<ScheduleView> {
             day.month == DateTime.now().month &&
             day.day == DateTime.now().day;
 
-        return Card(
-          elevation: isToday ? 2 : 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: isToday
-                  ? theme.colorScheme.primary
-                  : theme.dividerColor.withValues(alpha: 0.4),
-              width: isToday ? 1.5 : 1,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
+        return GradientCard(
+          borderColor: isToday ? theme.colorScheme.primary : null,
+          borderWidth: isToday ? 1.5 : null,
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Day header
@@ -521,7 +513,6 @@ class _ScheduleViewState extends State<ScheduleView> {
                     }).toList(),
                   ),
               ],
-            ),
           ),
         );
       },

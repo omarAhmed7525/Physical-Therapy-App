@@ -6,6 +6,7 @@ import 'package:physical_therapy/core/utils/date_helper.dart';
 import 'package:physical_therapy/core/utils/maps_route_builder.dart';
 import 'package:physical_therapy/providers/patient_provider.dart';
 import 'package:physical_therapy/providers/session_provider.dart';
+import 'package:physical_therapy/widgets/gradient_card.dart';
 import 'package:provider/provider.dart';
 
 class TodayRouteView extends StatelessWidget {
@@ -167,7 +168,7 @@ class TodayRouteView extends StatelessWidget {
                     separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final stop = stops[index];
-                      return Card(
+                      return GradientCard(
                         child: ListTile(
                           leading: CircleAvatar(
                             radius: 16,
