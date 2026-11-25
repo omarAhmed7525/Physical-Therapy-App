@@ -253,6 +253,111 @@ void main() {
       );
       expect(incomeJune, 225.0);
     });
+
+    test('overpayment on a session offsets older debt (S3)', () {
+      // [price 200 paid 100, price 200 paid 300] -> 0
+      final sSet1 = [
+        SessionModel(
+          id: 'a1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 200,
+          paidAmount: 100,
+          remainingAmount: 100,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+        SessionModel(
+          id: 'a2',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 2),
+          price: 200,
+          paidAmount: 300,
+          remainingAmount: 0, // clamped in Firestore
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet1,
+          debtPayments: [],
+        ),
+        0.0,
+      );
+
+      // [300/100, 200/300] -> 100
+      final sSet2 = [
+        SessionModel(
+          id: 'b1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 300,
+          paidAmount: 100,
+          remainingAmount: 200,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+        SessionModel(
+          id: 'b2',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 2),
+          price: 200,
+          paidAmount: 300,
+          remainingAmount: 0,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet2,
+          debtPayments: [],
+        ),
+        100.0,
+      );
+
+      // [200/100] -> 100
+      final sSet3 = [
+        SessionModel(
+          id: 'c1',
+          patientId: 'p1',
+          date: DateTime(2026, 6, 1),
+          price: 200,
+          paidAmount: 100,
+          remainingAmount: 100,
+          status: SessionStatus.completed,
+          notes: '',
+        ),
+      ];
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet3,
+          debtPayments: [],
+        ),
+        100.0,
+      );
+
+      // [200/100] with debt payment of 100 -> 0
+      expect(
+        DebtCalculator.calculateOutstandingDebt(
+          patientId: 'p1',
+          sessions: sSet3,
+          debtPayments: [
+            DebtPaymentModel(
+              id: 'dp1',
+              patientId: 'p1',
+              amount: 100,
+              paidAt: DateTime(2026, 6, 5),
+            ),
+          ],
+        ),
+        0.0,
+      );
+    });
   });
 
   group('PlanCalculator (Threshold = 1)', () {

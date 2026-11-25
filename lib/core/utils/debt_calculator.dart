@@ -7,23 +7,24 @@ class DebtCalculator {
   DebtCalculator._();
 
   /// Calculates outstanding debt for a patient:
-  /// `outstanding(patientId) = max(0, Σ remainingAmount of completed sessions − Σ debtPayments.amount)`
+  /// `outstanding(patientId) = max(0, Σ (price - paidAmount) of completed sessions − Σ debtPayments.amount)`
   static double calculateOutstandingDebt({
     required String patientId,
     required List<SessionModel> sessions,
     required List<DebtPaymentModel> debtPayments,
   }) {
-    // 1. Sum remainingAmount of that patient's sessions with status == completed
-    final totalRemaining = sessions
+    // 1. Sum (price - paidAmount) of that patient's sessions with status == completed
+    //    so that overpayments on a session offset older debt.
+    final totalBalance = sessions
         .where((s) => s.patientId == patientId && s.status == SessionStatus.completed)
-        .fold<double>(0.0, (sum, s) => sum + s.remainingAmount);
+        .fold<double>(0.0, (sum, s) => sum + (s.price - s.paidAmount));
 
     // 2. Sum of debt payments made by that patient
     final totalPaid = debtPayments
         .where((p) => p.patientId == patientId)
         .fold<double>(0.0, (sum, p) => sum + p.amount);
 
-    return max(0.0, totalRemaining - totalPaid);
+    return max(0.0, totalBalance - totalPaid);
   }
 
   /// Calculates current total outstanding debt across ALL patients:
